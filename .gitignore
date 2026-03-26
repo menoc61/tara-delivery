@@ -43,7 +43,10 @@ coverage/
 apps/mobile/.expo/
 apps/mobile/android/
 apps/mobile/ios/
-
+apps/api/logs/
+apps/api/node_modules/
+apps/web/logs/
+apps/web/node_modules/
 # Docker certs (never commit)
 docker/certs/
 

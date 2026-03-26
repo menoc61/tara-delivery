@@ -1,9 +1,9 @@
-'use client';
+"use client";
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from "react";
 
-export interface NotificationPermission {
-  permission: NotificationPermission | null;
+interface PushNotificationState {
+  permission: NotificationPermission;
   supported: boolean;
   subscribed: boolean;
   subscription: PushSubscription | null;
@@ -14,26 +14,28 @@ export interface NotificationPermission {
  * Replaces Firebase Cloud Messaging
  */
 export function usePushNotifications(vapidPublicKey?: string) {
-  const [state, setState] = useState<NotificationPermission>({
-    permission: null,
+  const [state, setState] = useState<PushNotificationState>({
+    permission: "default",
     supported: false,
     subscribed: false,
-    subscription: null
+    subscription: null,
   });
 
   useEffect(() => {
-    // Check if notifications are supported
-    if (typeof window === 'undefined' || !('Notification' in window)) {
+    if (typeof window === "undefined" || !("Notification" in window)) {
       return;
     }
 
-    if (!('serviceWorker' in navigator)) {
+    if (!("serviceWorker" in navigator)) {
       return;
     }
 
-    setState(prev => ({ ...prev, supported: true, permission: Notification.permission }));
+    setState((prev) => ({
+      ...prev,
+      supported: true,
+      permission: Notification.permission,
+    }));
 
-    // Check existing subscription
     checkSubscription();
   }, []);
 
@@ -42,57 +44,56 @@ export function usePushNotifications(vapidPublicKey?: string) {
       const registration = await navigator.serviceWorker.ready;
       const subscription = await registration.pushManager.getSubscription();
 
-      setState(prev => ({
+      setState((prev) => ({
         ...prev,
         subscribed: !!subscription,
-        subscription: subscription || null
+        subscription: subscription || null,
       }));
     } catch (error) {
-      console.error('Failed to check subscription:', error);
+      console.error("Failed to check subscription:", error);
     }
   };
 
-  const requestPermission = async (): Promise<NotificationPermission | null> => {
-    if (!state.supported) return null;
+  const requestPermission = async (): Promise<boolean> => {
+    if (!state.supported) return false;
 
     try {
       const permission = await Notification.requestPermission();
-      setState(prev => ({ ...prev, permission }));
-      return permission;
+      setState((prev) => ({ ...prev, permission }));
+      return permission === "granted";
     } catch (error) {
-      console.error('Failed to request notification permission:', error);
-      return null;
+      console.error("Failed to request notification permission:", error);
+      return false;
     }
   };
 
-  const subscribe = async (): Promise<PushSubscription | null> => {
-    if (!state.supported || !vapidPublicKey) return null;
+  const subscribe = async (): Promise<boolean> => {
+    if (!state.supported || !vapidPublicKey) return false;
 
     try {
-      // Ensure service worker is registered
-      const registration = await navigator.serviceWorker.register('/service-worker.js');
+      const registration =
+        await navigator.serviceWorker.register("/service-worker.js");
       await registration.update();
 
-      // Subscribe to push notifications
       const subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(vapidPublicKey)
+        applicationServerKey: urlBase64ToUint8Array(
+          vapidPublicKey,
+        ) as unknown as BufferSource,
       });
 
-      setState(prev => ({
+      setState((prev) => ({
         ...prev,
         subscribed: true,
         subscription,
-        permission: 'granted' as NotificationPermission
+        permission: "granted",
       }));
 
-      // Send subscription to server
       await sendSubscriptionToServer(subscription);
-
-      return subscription;
+      return true;
     } catch (error) {
-      console.error('Failed to subscribe to push notifications:', error);
-      return null;
+      console.error("Failed to subscribe to push notifications:", error);
+      return false;
     }
   };
 
@@ -101,19 +102,17 @@ export function usePushNotifications(vapidPublicKey?: string) {
 
     try {
       await state.subscription.unsubscribe();
-
-      // Remove from server
       await removeSubscriptionFromServer(state.subscription);
 
-      setState(prev => ({
+      setState((prev) => ({
         ...prev,
         subscribed: false,
-        subscription: null
+        subscription: null,
       }));
 
       return true;
     } catch (error) {
-      console.error('Failed to unsubscribe:', error);
+      console.error("Failed to unsubscribe:", error);
       return false;
     }
   };
@@ -122,16 +121,13 @@ export function usePushNotifications(vapidPublicKey?: string) {
     ...state,
     requestPermission,
     subscribe,
-    unsubscribe
+    unsubscribe,
   };
 }
 
-/**
- * Convert base64 VAPID key to Uint8Array
- */
 function urlBase64ToUint8Array(base64String: string): Uint8Array {
-  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
-  const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
   const rawData = window.atob(base64);
   const outputArray = new Uint8Array(rawData.length);
 
@@ -142,36 +138,30 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
   return outputArray;
 }
 
-/**
- * Send push subscription to server
- */
-async function sendSubscriptionToServer(subscription: PushSubscription): Promise<void> {
+async function sendSubscriptionToServer(
+  subscription: PushSubscription,
+): Promise<void> {
   try {
-    const response = await fetch('/api/notifications/subscribe', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(subscription)
+    await fetch("/api/notifications/subscribe", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(subscription),
     });
-
-    if (!response.ok) {
-      throw new Error('Failed to send subscription to server');
-    }
   } catch (error) {
-    console.error('Failed to send subscription to server:', error);
+    console.error("Failed to send subscription to server:", error);
   }
 }
 
-/**
- * Remove push subscription from server
- */
-async function removeSubscriptionFromServer(subscription: PushSubscription): Promise<void> {
+async function removeSubscriptionFromServer(
+  subscription: PushSubscription,
+): Promise<void> {
   try {
-    await fetch('/api/notifications/unsubscribe', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ endpoint: subscription.endpoint })
+    await fetch("/api/notifications/unsubscribe", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ endpoint: subscription.endpoint }),
     });
   } catch (error) {
-    console.error('Failed to remove subscription from server:', error);
+    console.error("Failed to remove subscription from server:", error);
   }
 }

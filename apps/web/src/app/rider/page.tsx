@@ -1,306 +1,302 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
-  Navigation, Package, CheckCircle, XCircle,
-  MapPin, Clock, DollarSign, ToggleLeft, ToggleRight, LogOut
+  Package,
+  MapPin,
+  Clock,
+  DollarSign,
+  Star,
+  Navigation,
+  ChevronRight,
+  LogOut,
+  Bell,
+  User,
+  Bike,
+  Phone,
+  Menu,
+  CheckCircle,
+  AlertCircle,
+  Power,
+  PowerOff,
 } from "lucide-react";
 import { useAuthStore } from "@/store/auth.store";
-import { ridersApi, ordersApi, authApi } from "@/lib/api-client";
-import { useRouter } from "next/navigation";
+import { ordersApi, ridersApi, authApi } from "@/lib/api-client";
 import toast from "react-hot-toast";
+import { RiderStatus } from "@tara/types";
 
-const formatCFA = (v: number) => new Intl.NumberFormat("fr-CM").format(v) + " XAF";
-
-type RiderStatus = "AVAILABLE" | "BUSY" | "OFFLINE";
+const formatCFA = (v: number) =>
+  new Intl.NumberFormat("fr-CM").format(v) + " XAF";
 
 export default function RiderDashboard() {
   const { user, clearAuth } = useAuthStore();
   const router = useRouter();
-  const [riderProfile, setRiderProfile] = useState<Record<string, unknown> | null>(null);
-  const [availableOrders, setAvailableOrders] = useState<Record<string, unknown>[]>([]);
-  const [myOrders, setMyOrders] = useState<Record<string, unknown>[]>([]);
+  const [status, setStatus] = useState<RiderStatus>(RiderStatus.AVAILABLE);
+  const [activeOrders, setActiveOrders] = useState<Record<string, unknown>[]>(
+    [],
+  );
+  const [availableOrders, setAvailableOrders] = useState<
+    Record<string, unknown>[]
+  >([]);
   const [loading, setLoading] = useState(true);
-  const [statusUpdating, setStatusUpdating] = useState(false);
+  const [updating, setUpdating] = useState(false);
 
-  const loadData = useCallback(async () => {
-    try {
-      const [profileRes, availRes, myRes] = await Promise.all([
-        ridersApi.getMe(),
-        ordersApi.getAvailable(),
-        ordersApi.getRiderOrders({ limit: 5, status: "ASSIGNED,PICKED_UP,IN_TRANSIT" }),
-      ]);
-      setRiderProfile(profileRes.data.data);
-      setAvailableOrders(availRes.data.data || []);
-      setMyOrders(myRes.data.data?.items || []);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => { loadData(); }, [loadData]);
-
-  // Send GPS location every 30s when available
   useEffect(() => {
-    if (!navigator.geolocation) return;
-    const interval = setInterval(() => {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          ridersApi.updateLocation({
-            lat: pos.coords.latitude,
-            lng: pos.coords.longitude,
-            heading: pos.coords.heading || undefined,
-            speed: pos.coords.speed || undefined,
-          }).catch(() => {});
-        },
-        () => {}
-      );
-    }, 30_000);
+    loadData();
+    const interval = setInterval(loadData, 30000);
     return () => clearInterval(interval);
   }, []);
 
-  const toggleStatus = async () => {
-    const current = riderProfile?.status as RiderStatus;
-    const next: RiderStatus = current === "AVAILABLE" ? "OFFLINE" : "AVAILABLE";
-    setStatusUpdating(true);
+  const loadData = async () => {
     try {
-      await ridersApi.updateStatus(next);
-      setRiderProfile((p) => p ? { ...p, status: next } : p);
-      toast.success(next === "AVAILABLE" ? "Vous êtes maintenant disponible 🟢" : "Vous êtes hors ligne 🔴");
-    } catch {
-      toast.error("Erreur lors du changement de statut");
+      const [activeRes, availableRes] = await Promise.all([
+        ordersApi.getMyOrders({ limit: 10 }),
+        ordersApi.getAvailable(),
+      ]);
+      setActiveOrders(
+        activeRes.data.data.items?.filter(
+          (o: Record<string, unknown>) =>
+            !["DELIVERED", "CANCELLED", "FAILED"].includes(o.status as string),
+        ) || [],
+      );
+      setAvailableOrders(availableRes.data.data.items || []);
+    } catch (err) {
+      console.error("Failed to load orders:", err);
     } finally {
-      setStatusUpdating(false);
+      setLoading(false);
     }
   };
 
-  const acceptOrder = async (orderId: string) => {
+  const handleStatusToggle = async () => {
+    setUpdating(true);
     try {
-      await ordersApi.updateStatus(orderId, "PICKED_UP");
+      const newStatus =
+        status === RiderStatus.AVAILABLE
+          ? RiderStatus.OFFLINE
+          : RiderStatus.AVAILABLE;
+      await ridersApi.updateStatus(newStatus);
+      setStatus(newStatus);
+      toast.success(
+        newStatus === RiderStatus.AVAILABLE
+          ? "Vous êtes maintenant disponible"
+          : "Vous êtes hors ligne",
+      );
+    } catch (err) {
+      toast.error("Erreur lors de la mise à jour du statut");
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const handleAcceptOrder = async (orderId: string) => {
+    setUpdating(true);
+    try {
+      await ordersApi.assignToMe(orderId);
       toast.success("Commande acceptée!");
       loadData();
-    } catch {
-      toast.error("Impossible d'accepter cette commande");
-    }
-  };
-
-  const updateOrderStatus = async (orderId: string, status: string) => {
-    try {
-      await ordersApi.updateStatus(orderId, status);
-      toast.success("Statut mis à jour");
-      loadData();
-    } catch {
-      toast.error("Erreur lors de la mise à jour");
+    } catch (err) {
+      toast.error("Erreur lors de l'acceptation");
+    } finally {
+      setUpdating(false);
     }
   };
 
   const handleLogout = async () => {
-    try { await authApi.logout(); } catch {}
+    try {
+      await authApi.logout();
+    } catch {}
     clearAuth();
     router.push("/auth/login");
   };
 
-  const isOnline = riderProfile?.status === "AVAILABLE";
-
-  if (loading) return (
-    <div className="min-h-screen flex items-center justify-center">
-      <div className="spinner scale-150" />
-    </div>
-  );
+  const stats = {
+    deliveries: activeOrders.length,
+    earnings: activeOrders.reduce(
+      (sum, o) => sum + ((o.totalAmount as number) || 0),
+      0,
+    ),
+    rating: 4.8,
+  };
 
   return (
-    <div className="min-h-screen bg-surface-secondary">
+    <div className="min-h-screen bg-surface">
       {/* Header */}
-      <header className="bg-gray-900 text-white px-4 py-4">
-        <div className="max-w-2xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-brand-500/20 flex items-center justify-center text-brand-400 font-bold">
-              {user?.name?.[0]?.toUpperCase()}
-            </div>
-            <div>
-              <p className="font-semibold text-sm">{user?.name}</p>
-              <div className="flex items-center gap-1.5">
-                <div className={`w-2 h-2 rounded-full ${isOnline ? "bg-emerald-400" : "bg-gray-500"}`} />
-                <span className="text-xs text-gray-400">{isOnline ? "En ligne" : "Hors ligne"}</span>
+      <header
+        className="sticky top-0 z-40 border-b border-outline-var/15"
+        style={{ background: "var(--primary)" }}
+      >
+        <div className="max-w-4xl mx-auto px-4 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
+                <Bike className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <p className="text-white/80 text-xs">Bienvenue,</p>
+                <p className="text-white font-bold">{user?.name}</p>
               </div>
             </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={toggleStatus}
-              disabled={statusUpdating}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
-                isOnline
-                  ? "bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30"
-                  : "bg-gray-700 text-gray-400 hover:bg-gray-600"
-              }`}
-            >
-              {isOnline
-                ? <><ToggleRight className="w-4 h-4" /> Disponible</>
-                : <><ToggleLeft className="w-4 h-4" /> Hors ligne</>
-              }
-            </button>
-            <button onClick={handleLogout} className="p-2 rounded-xl hover:bg-gray-800 text-gray-400">
-              <LogOut className="w-4 h-4" />
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleStatusToggle}
+                disabled={updating}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
+                  status === RiderStatus.AVAILABLE
+                    ? "bg-white/20 text-white hover:bg-white/30"
+                    : "bg-gray-500/50 text-white hover:bg-gray-500/60"
+                }`}
+              >
+                {status === RiderStatus.AVAILABLE ? (
+                  <>
+                    <Power className="w-4 h-4" /> En ligne
+                  </>
+                ) : (
+                  <>
+                    <PowerOff className="w-4 h-4" /> Hors ligne
+                  </>
+                )}
+              </button>
+              <button
+                onClick={handleLogout}
+                className="p-2 rounded-lg hover:bg-white/10"
+              >
+                <LogOut className="w-5 h-5 text-white" />
+              </button>
+            </div>
           </div>
         </div>
       </header>
 
-      <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
-        {/* Stats */}
-        <div className="grid grid-cols-3 gap-3">
-          {[
-            { label: "Livraisons", value: riderProfile?._count?.orders || 0, icon: Package, color: "bg-blue-50 text-blue-600" },
-            { label: "Note", value: `${((riderProfile?.rating as number) || 0).toFixed(1)}★`, icon: CheckCircle, color: "bg-amber-50 text-amber-600", raw: true },
-            { label: "Revenus (XAF)", value: "—", icon: DollarSign, color: "bg-emerald-50 text-emerald-600", raw: true },
-          ].map((s) => (
-            <div key={s.label} className="card p-4">
-              <div className={`w-8 h-8 rounded-xl flex items-center justify-center mb-2 ${s.color}`}>
-                <s.icon className="w-4 h-4" />
-              </div>
-              <p className="text-xl font-bold font-display text-gray-900">{s.raw ? s.value : Number(s.value).toLocaleString()}</p>
-              <p className="text-xs text-gray-500 mt-0.5">{s.label}</p>
-            </div>
-          ))}
+      <div className="max-w-4xl mx-auto px-4 py-6 space-y-6">
+        {/* Stats - 3-col grid */}
+        <div className="grid grid-cols-3 gap-4">
+          <div className="card p-4 text-center">
+            <Package className="w-5 h-5 text-primary mx-auto mb-2" />
+            <p className="text-2xl font-display font-bold text-on-surface">
+              {stats.deliveries}
+            </p>
+            <p className="text-xs text-on-sur-var">En cours</p>
+          </div>
+          <div className="card p-4 text-center">
+            <DollarSign className="w-5 h-5 text-primary mx-auto mb-2" />
+            <p className="text-2xl font-display font-bold text-on-surface">
+              {formatCFA(stats.earnings)}
+            </p>
+            <p className="text-xs text-on-sur-var">Revenus</p>
+          </div>
+          <div className="card p-4 text-center">
+            <Star className="w-5 h-5 text-secondary-container mx-auto mb-2" />
+            <p className="text-2xl font-display font-bold text-on-surface">
+              {stats.rating}
+            </p>
+            <p className="text-xs text-on-sur-var">Note</p>
+          </div>
         </div>
 
-        {/* Active orders */}
-        {myOrders.length > 0 && (
+        {/* Active Delivery */}
+        {activeOrders.length > 0 && (
           <div>
-            <h2 className="text-base font-bold text-gray-900 mb-3 font-display">Mes livraisons actives</h2>
-            <div className="space-y-3">
-              {myOrders.map((order) => (
-                <div key={order.id as string} className="card p-4">
-                  <div className="flex items-start justify-between mb-3">
+            <h2 className="text-lg font-display font-bold text-on-surface mb-4">
+              Livraison en cours
+            </h2>
+            {activeOrders.map((order) => (
+              <div key={order.id as string} className="card p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-sm font-mono font-bold text-on-surface">
+                    {order.orderNumber as string}
+                  </span>
+                  <span className="badge badge-in-transit">En route</span>
+                </div>
+                <div className="space-y-3">
+                  <div className="flex items-start gap-3">
+                    <div className="w-2 h-2 rounded-full bg-primary mt-1.5" />
                     <div>
-                      <span className="text-sm font-mono font-semibold text-gray-900">{order.orderNumber as string}</span>
-                      <span className={`badge ml-2 badge-${(order.status as string).toLowerCase().replace("_","-")}`}>
-                        {order.status as string}
-                      </span>
-                    </div>
-                    <span className="text-sm font-semibold text-gray-900">{formatCFA(order.deliveryFee as number)}</span>
-                  </div>
-
-                  <div className="space-y-2 mb-4">
-                    <div className="flex items-start gap-2 text-sm">
-                      <div className="w-2 h-2 rounded-full bg-brand-500 mt-1.5 flex-shrink-0" />
-                      <div>
-                        <p className="text-xs text-gray-400">Collecte</p>
-                        <p className="text-gray-700">{order.pickupNeighborhood as string}, {order.pickupCity as string}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-2 text-sm">
-                      <MapPin className="w-4 h-4 text-emerald-500 mt-0.5 flex-shrink-0" />
-                      <div>
-                        <p className="text-xs text-gray-400">Livraison</p>
-                        <p className="text-gray-700">{order.deliveryNeighborhood as string}, {order.deliveryCity as string}</p>
-                      </div>
+                      <p className="text-xs text-on-sur-var">Collecte</p>
+                      <p className="text-sm text-on-surface">
+                        {order.pickupStreet as string}
+                      </p>
+                      <p className="text-xs text-on-sur-var">
+                        {order.pickupNeighborhood as string}
+                      </p>
                     </div>
                   </div>
-
-                  <div className="flex gap-2">
-                    {order.status === "ASSIGNED" && (
-                      <button
-                        onClick={() => updateOrderStatus(order.id as string, "PICKED_UP")}
-                        className="btn-primary flex-1 py-2 text-sm"
-                      >
-                        <CheckCircle className="w-4 h-4" /> Colis collecté
-                      </button>
-                    )}
-                    {order.status === "PICKED_UP" && (
-                      <button
-                        onClick={() => updateOrderStatus(order.id as string, "IN_TRANSIT")}
-                        className="btn-primary flex-1 py-2 text-sm"
-                      >
-                        <Navigation className="w-4 h-4" /> En route
-                      </button>
-                    )}
-                    {order.status === "IN_TRANSIT" && (
-                      <button
-                        onClick={() => updateOrderStatus(order.id as string, "DELIVERED")}
-                        className="btn-primary flex-1 py-2 text-sm bg-emerald-500 hover:bg-emerald-600"
-                      >
-                        <CheckCircle className="w-4 h-4" /> Livré!
-                      </button>
-                    )}
+                  <div className="flex items-start gap-3">
+                    <div className="w-2 h-2 rounded-full bg-secondary-container mt-1.5" />
+                    <div>
+                      <p className="text-xs text-on-sur-var">Livraison</p>
+                      <p className="text-sm text-on-surface">
+                        {order.deliveryStreet as string}
+                      </p>
+                      <p className="text-xs text-on-sur-var">
+                        {order.deliveryNeighborhood as string}
+                      </p>
+                    </div>
                   </div>
                 </div>
-              ))}
-            </div>
+                <div className="flex items-center justify-between mt-4 pt-4 border-t border-sur-low">
+                  <span className="font-bold text-on-surface">
+                    {formatCFA(order.totalAmount as number)}
+                  </span>
+                  <Link
+                    href={`/rider/orders/${order.id}`}
+                    className="btn-primary text-sm py-2"
+                  >
+                    <Navigation className="w-4 h-4" /> Navigator
+                  </Link>
+                </div>
+              </div>
+            ))}
           </div>
         )}
 
-        {/* Available orders */}
+        {/* Available Orders */}
         <div>
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-base font-bold text-gray-900 font-display">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-display font-bold text-on-surface">
               Commandes disponibles
-              {availableOrders.length > 0 && (
-                <span className="ml-2 badge bg-brand-500/10 text-brand-600">{availableOrders.length}</span>
-              )}
             </h2>
+            <span className="text-xs text-on-sur-var">
+              {availableOrders.length} disponibles
+            </span>
           </div>
 
-          {!isOnline ? (
-            <div className="card p-8 text-center">
-              <ToggleLeft className="w-12 h-12 text-gray-200 mx-auto mb-3" />
-              <p className="text-sm font-medium text-gray-600">Passez en ligne pour voir les commandes disponibles</p>
+          {loading ? (
+            <div className="card p-8 flex items-center justify-center">
+              <div className="spinner" />
             </div>
           ) : availableOrders.length === 0 ? (
             <div className="card p-8 text-center">
-              <Clock className="w-12 h-12 text-gray-200 mx-auto mb-3" />
-              <p className="text-sm font-medium text-gray-600">Aucune commande disponible pour l'instant</p>
-              <p className="text-xs text-gray-400 mt-1">Restez en ligne pour recevoir des alertes</p>
+              <Package className="w-10 h-10 text-outline-var mx-auto mb-3" />
+              <p className="text-sm text-on-sur-var">
+                Aucune commande disponible
+              </p>
             </div>
           ) : (
             <div className="space-y-3">
               {availableOrders.map((order) => (
-                <div key={order.id as string} className="card p-4 border-l-4 border-brand-500">
-                  <div className="flex items-start justify-between mb-3">
-                    <div>
-                      <span className="text-sm font-mono font-semibold text-gray-900">{order.orderNumber as string}</span>
-                      <span className="ml-2 text-xs text-gray-500">{order.type as string}</span>
-                    </div>
-                    <span className="text-base font-bold text-brand-600">{formatCFA(order.deliveryFee as number)}</span>
+                <div key={order.id as string} className="card p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-mono font-bold text-on-surface">
+                      {order.orderNumber as string}
+                    </span>
+                    <span className="font-bold text-primary">
+                      {formatCFA(order.totalAmount as number)}
+                    </span>
                   </div>
-
-                  <div className="flex items-center gap-4 text-xs text-gray-500 mb-3">
-                    {order.distance && (
-                      <span className="flex items-center gap-1">
-                        <Navigation className="w-3 h-3" />
-                        {(order.distance as number).toFixed(1)} km
-                      </span>
-                    )}
-                    {order.estimatedDuration && (
-                      <span className="flex items-center gap-1">
-                        <Clock className="w-3 h-3" />
-                        ~{order.estimatedDuration as number} min
-                      </span>
-                    )}
+                  <div className="flex items-center gap-2 text-xs text-on-sur-var mb-3">
+                    <MapPin className="w-3 h-3" />
+                    {order.pickupNeighborhood as string} →{" "}
+                    {order.deliveryNeighborhood as string}
                   </div>
-
-                  <div className="space-y-1.5 mb-4 text-sm">
-                    <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full bg-brand-500" />
-                      <span className="text-gray-600 text-xs">{order.pickupNeighborhood as string}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <MapPin className="w-3.5 h-3.5 text-emerald-500" />
-                      <span className="text-gray-600 text-xs">{order.deliveryNeighborhood as string}</span>
-                    </div>
-                  </div>
-
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => acceptOrder(order.id as string)}
-                      className="btn-primary flex-1 py-2 text-sm"
-                    >
-                      <CheckCircle className="w-4 h-4" /> Accepter
-                    </button>
-                  </div>
+                  <button
+                    onClick={() => handleAcceptOrder(order.id as string)}
+                    disabled={updating || status !== RiderStatus.AVAILABLE}
+                    className="btn-primary w-full text-sm py-2.5"
+                  >
+                    <CheckCircle className="w-4 h-4" /> Accepter
+                  </button>
                 </div>
               ))}
             </div>
