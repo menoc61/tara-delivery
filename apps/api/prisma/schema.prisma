@@ -1,0 +1,349 @@
+// ============================================================
+// TARA DELIVERY - Prisma Schema
+// ============================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ── Enums ─────────────────────────────────────────────────
+
+enum UserRole {
+  CUSTOMER
+  RIDER
+  ADMIN
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  ASSIGNED
+  PICKED_UP
+  IN_TRANSIT
+  DELIVERED
+  CANCELLED
+  FAILED
+}
+
+enum OrderType {
+  PARCEL
+  FOOD
+  COURIER
+  GROCERY
+}
+
+enum PaymentMethod {
+  MTN_MOMO
+  ORANGE_MONEY
+  CASH_ON_DELIVERY
+}
+
+enum PaymentStatus {
+  PENDING
+  INITIATED
+  SUCCESS
+  FAILED
+  REFUNDED
+}
+
+enum RiderStatus {
+  AVAILABLE
+  BUSY
+  OFFLINE
+}
+
+enum VehicleType {
+  MOTORCYCLE
+  BICYCLE
+  CAR
+  TRUCK
+}
+
+enum NotificationType {
+  ORDER_CREATED
+  ORDER_CONFIRMED
+  ORDER_ASSIGNED
+  ORDER_PICKED_UP
+  ORDER_DELIVERED
+  ORDER_CANCELLED
+  PAYMENT_SUCCESS
+  PAYMENT_FAILED
+  RIDER_ASSIGNED
+  NEW_ORDER_ALERT
+}
+
+enum TransactionType {
+  DEBIT
+  CREDIT
+  REFUND
+}
+
+// ── Models ────────────────────────────────────────────────
+
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  name          String
+  phone         String?
+  passwordHash  String?
+  avatar        String?
+  googleId      String?   @unique
+  role          UserRole  @default(CUSTOMER)
+  isActive      Boolean   @default(true)
+  pushSubscription String?
+  lastLoginAt   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  rider         Rider?
+  admin         Admin?
+  orders        Order[]          @relation("CustomerOrders")
+  notifications Notification[]
+  ratings       Rating[]
+  savedAddresses SavedAddress[]
+  passwordResets PasswordReset[]
+
+  @@map("users")
+  @@index([email])
+  @@index([phone])
+  @@index([role])
+}
+
+model Rider {
+  id               String      @id @default(uuid())
+  userId           String      @unique
+  user             User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  vehicleType      VehicleType
+  vehiclePlate     String
+  licenseNumber    String
+  status           RiderStatus @default(OFFLINE)
+  isVerified       Boolean     @default(false)
+  rating           Float       @default(0)
+  totalDeliveries  Int         @default(0)
+  currentLat       Float?
+  currentLng       Float?
+  lastLocationAt   DateTime?
+  bio              String?
+  idDocumentUrl    String?
+  licenseDocumentUrl String?
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  // Relations
+  orders           Order[]     @relation("RiderOrders")
+  ratings          Rating[]    @relation("RiderRatings")
+  statusLogs       DeliveryStatusLog[]
+
+  @@map("riders")
+  @@index([status])
+  @@index([isVerified])
+}
+
+model Admin {
+  id          String   @id @default(uuid())
+  userId      String   @unique
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  permissions String[] @default([])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("admins")
+}
+
+model Order {
+  id                String      @id @default(uuid())
+  orderNumber       String      @unique
+  userId            String
+  user              User        @relation("CustomerOrders", fields: [userId], references: [id])
+  riderId           String?
+  rider             Rider?      @relation("RiderOrders", fields: [riderId], references: [id])
+  type              OrderType
+  status            OrderStatus @default(PENDING)
+  
+  // Pickup address
+  pickupStreet      String
+  pickupNeighborhood String
+  pickupCity        String      @default("Yaoundé")
+  pickupLandmark    String?
+  pickupLat         Float?
+  pickupLng         Float?
+  pickupLabel       String?
+  
+  // Delivery address
+  deliveryStreet    String
+  deliveryNeighborhood String
+  deliveryCity      String      @default("Yaoundé")
+  deliveryLandmark  String?
+  deliveryLat       Float?
+  deliveryLng       Float?
+  deliveryLabel     String?
+  
+  totalAmount       Float
+  deliveryFee       Float
+  distance          Float?      // in km
+  estimatedDuration Int?        // in minutes
+  notes             String?
+  cancelReason      String?
+  assignedAt        DateTime?
+  pickedUpAt        DateTime?
+  deliveredAt       DateTime?
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  // Relations
+  items             OrderItem[]
+  payment           Payment?
+  statusLogs        DeliveryStatusLog[]
+  rating            Rating?
+  
+  @@map("orders")
+  @@index([userId])
+  @@index([riderId])
+  @@index([status])
+  @@index([type])
+  @@index([createdAt])
+}
+
+model OrderItem {
+  id          String  @id @default(uuid())
+  orderId     String
+  order       Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  name        String
+  quantity    Int     @default(1)
+  weight      Float?
+  description String?
+  imageUrl    String?
+
+  @@map("order_items")
+  @@index([orderId])
+}
+
+model DeliveryStatusLog {
+  id        String      @id @default(uuid())
+  orderId   String
+  order     Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  riderId   String?
+  rider     Rider?      @relation(fields: [riderId], references: [id])
+  status    OrderStatus
+  notes     String?
+  lat       Float?
+  lng       Float?
+  timestamp DateTime    @default(now())
+
+  @@map("delivery_status_logs")
+  @@index([orderId])
+}
+
+model Payment {
+  id              String        @id @default(uuid())
+  orderId         String        @unique
+  order           Order         @relation(fields: [orderId], references: [id])
+  method          PaymentMethod
+  status          PaymentStatus @default(PENDING)
+  amount          Float
+  currency        String        @default("XAF")
+  externalRef     String?       // Our reference sent to provider
+  transactionId   String?       // Provider's transaction ID
+  phoneNumber     String?
+  failureReason   String?
+  webhookData     Json?
+  paidAt          DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  // Relations
+  transactions    Transaction[]
+
+  @@map("payments")
+  @@index([orderId])
+  @@index([status])
+  @@index([externalRef])
+}
+
+model Transaction {
+  id          String          @id @default(uuid())
+  paymentId   String
+  payment     Payment         @relation(fields: [paymentId], references: [id])
+  type        TransactionType
+  amount      Float
+  status      PaymentStatus
+  reference   String          @unique
+  metadata    Json?
+  createdAt   DateTime        @default(now())
+
+  @@map("transactions")
+  @@index([paymentId])
+  @@index([reference])
+}
+
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      NotificationType
+  title     String
+  body      String
+  data      Json?
+  isRead    Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  @@map("notifications")
+  @@index([userId])
+  @@index([isRead])
+  @@index([createdAt])
+}
+
+model Rating {
+  id        String   @id @default(uuid())
+  orderId   String   @unique
+  order     Order    @relation(fields: [orderId], references: [id])
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  riderId   String
+  rider     Rider    @relation("RiderRatings", fields: [riderId], references: [id])
+  score     Int      // 1-5
+  comment   String?
+  createdAt DateTime @default(now())
+
+  @@map("ratings")
+  @@index([riderId])
+  @@index([userId])
+}
+
+model SavedAddress {
+  id           String   @id @default(uuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  label        String
+  street       String
+  neighborhood String
+  city         String   @default("Yaoundé")
+  landmark     String?
+  lat          Float?
+  lng          Float?
+  isDefault    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  @@map("saved_addresses")
+  @@index([userId])
+}
+
+model PasswordReset {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@map("password_resets")
+  @@index([token])
+  @@index([userId])
+}
