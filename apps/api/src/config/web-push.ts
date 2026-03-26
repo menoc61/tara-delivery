@@ -1,17 +1,19 @@
-import webPush from 'web-push';
-import { logger } from '../utils/logger';
+import webPush from "web-push";
+import { logger } from "./logger";
 
 const vapidPublicKey = process.env.VAPID_PUBLIC_KEY;
 const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY;
 
 if (vapidPublicKey && vapidPrivateKey) {
   webPush.setVapidDetails(
-    'mailto:admin@taradelivery.com',
+    "mailto:admin@taradelivery.com",
     vapidPublicKey,
-    vapidPrivateKey
+    vapidPrivateKey,
   );
 } else {
-  logger.warn('VAPID keys not configured. Push notifications will be disabled.');
+  logger.warn(
+    "VAPID keys not configured. Push notifications will be disabled.",
+  );
 }
 
 export interface PushNotificationPayload {
@@ -22,7 +24,7 @@ export interface PushNotificationPayload {
   image?: string;
   tag?: string;
   requireInteraction?: boolean;
-  actions?: Array<{ action: string; title: string }&gt;;
+  actions?: Array<{ action: string; title: string }>;
   data?: Record<string, unknown>;
 }
 
@@ -42,22 +44,22 @@ export interface PushSubscription {
  */
 export async function sendPushNotification(
   subscription: PushSubscription,
-  payload: PushNotificationPayload
+  payload: PushNotificationPayload,
 ): Promise<{ success: boolean; message?: string }> {
   if (!vapidPublicKey || !vapidPrivateKey) {
-    logger.debug('Push notifications not configured');
-    return { success: false, message: 'Push notifications not configured' };
+    logger.debug("Push notifications not configured");
+    return { success: false, message: "Push notifications not configured" };
   }
 
   try {
     await webPush.sendNotification(
       subscription as any,
-      JSON.stringify(payload)
+      JSON.stringify(payload),
     );
-    logger.debug('Push notification sent successfully');
+    logger.debug("Push notification sent successfully");
     return { success: true };
   } catch (error) {
-    logger.error('Failed to send push notification:', error);
+    logger.error("Failed to send push notification:", error);
     return { success: false, message: (error as Error).message };
   }
 }
@@ -70,7 +72,7 @@ export async function sendPushNotification(
  */
 export async function sendBulkPushNotifications(
   subscriptions: PushSubscription[],
-  payload: PushNotificationPayload
+  payload: PushNotificationPayload,
 ): Promise<Map<string, { success: boolean; message?: string }>> {
   const results = new Map<string, { success: boolean; message?: string }>();
 
@@ -78,7 +80,7 @@ export async function sendBulkPushNotifications(
     subscriptions.map(async (sub) => {
       const result = await sendPushNotification(sub, payload);
       results.set(sub.endpoint, result);
-    })
+    }),
   );
 
   return results;

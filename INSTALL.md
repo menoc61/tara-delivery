@@ -11,7 +11,7 @@
 3. [Configuration des variables d'environnement](#3-variables-denvironnement)
 4. [MTN MoMo — Configuration étape par étape](#4-mtn-momo)
 5. [Orange Money — Configuration étape par étape](#5-orange-money)
-6. [Firebase — Realtime DB + Notifications](#6-firebase)
+6. [Supabase — Realtime DB + Notifications](#6-supabase)
 7. [Google OAuth](#7-google-oauth)
 8. [Base de données Prisma](#8-prisma--base-de-données)
 9. [Déploiement Docker en production](#9-déploiement-docker)
@@ -26,19 +26,19 @@
 
 ### Logiciels requis (machine locale)
 
-| Outil       | Version min. | Installation                          |
-|-------------|-------------|---------------------------------------|
-| **Node.js** | 20.x LTS    | https://nodejs.org                    |
-| **pnpm**    | 9.x         | `npm install -g pnpm@9`               |
-| **Docker**  | 24.x        | https://docs.docker.com/get-docker/   |
-| **Docker Compose** | v2.x | inclus avec Docker Desktop           |
-| **Git**     | 2.x         | https://git-scm.com                   |
+| Outil              | Version min. | Installation                        |
+| ------------------ | ------------ | ----------------------------------- |
+| **Node.js**        | 20.x LTS     | https://nodejs.org                  |
+| **pnpm**           | 9.x          | `npm install -g pnpm@9`             |
+| **Docker**         | 24.x         | https://docs.docker.com/get-docker/ |
+| **Docker Compose** | v2.x         | inclus avec Docker Desktop          |
+| **Git**            | 2.x          | https://git-scm.com                 |
 
 ### Comptes et accès requis
 
 - [ ] Compte **MTN MoMo Developer** → https://momodeveloper.mtn.com
 - [ ] Compte **Orange Developer** → https://developer.orange.com
-- [ ] Projet **Firebase** → https://console.firebase.google.com
+- [ ] Projet **Supabase** → https://supabase.com (already done - database is live)
 - [ ] Projet **Google Cloud** (pour OAuth) → https://console.cloud.google.com
 - [ ] VPS **Hostinger** (Ubuntu 22.04 LTS) → https://hostinger.cm
 - [ ] Nom de domaine (ex: tara-delivery.cm)
@@ -73,20 +73,20 @@ curl http://localhost/health
 
 ### URLs de développement
 
-| Service       | URL                          |
-|---------------|------------------------------|
-| Web (Next.js) | http://localhost              |
-| API           | http://localhost/api          |
-| API direct    | http://localhost:4000         |
+| Service       | URL                                               |
+| ------------- | ------------------------------------------------- |
+| Web (Next.js) | http://localhost                                  |
+| API           | http://localhost/api                              |
+| API direct    | http://localhost:4000                             |
 | Prisma Studio | http://localhost:5555 (après `npx prisma studio`) |
 
 ### Comptes de test (après seed)
 
-| Rôle     | Email                   | Mot de passe   |
-|----------|-------------------------|----------------|
-| Admin    | admin@tara-delivery.cm  | Admin@123456   |
-| Client   | customer@test.cm        | Customer@123   |
-| Livreur  | rider@test.cm           | Rider@123      |
+| Rôle    | Email                  | Mot de passe |
+| ------- | ---------------------- | ------------ |
+| Admin   | admin@tara-delivery.cm | Admin@123456 |
+| Client  | customer@test.cm       | Customer@123 |
+| Livreur | rider@test.cm          | Rider@123    |
 
 ---
 
@@ -206,11 +206,11 @@ Commande confirmée automatiquement
 
 ### 4.6 Numéros de test (sandbox)
 
-| Numéro          | Résultat    |
-|-----------------|-------------|
-| 46733123450     | SUCCESSFUL  |
-| 46733123451     | FAILED      |
-| N'importe quel  | PENDING (timeout après 60s) |
+| Numéro         | Résultat                    |
+| -------------- | --------------------------- |
+| 46733123450    | SUCCESSFUL                  |
+| 46733123451    | FAILED                      |
+| N'importe quel | PENDING (timeout après 60s) |
 
 ---
 
@@ -281,74 +281,52 @@ Commande confirmée automatiquement
 
 ---
 
-## 6. Firebase
+## 6. Supabase (Realtime Database + Push Notifications)
 
-### 6.1 Créer le projet Firebase
+### 6.1 Your Supabase Project
 
-1. Aller sur **https://console.firebase.google.com**
-2. **"Créer un projet"** → Nom: "tara-delivery"
-3. Désactiver Google Analytics si non nécessaire → **"Créer le projet"**
+The database is already live at:
 
-### 6.2 Activer Realtime Database
+- URL: `https://bziwkxynrxkpgifmljid.supabase.co`
+- You have the connection string in your `.env`
 
-1. Dans le menu gauche → **"Realtime Database"**
-2. **"Créer une base de données"**
-3. Choisir région: **"Belgium (europe-west1)"** (la plus proche de l'Afrique centrale)
-4. Mode de démarrage: **"Mode verrouillé"** (on configurera les règles)
-5. Copier l'URL: `https://tara-delivery-XXXXX-default-rtdb.europe-west1.firebasedatabase.app`
+### 6.2 Enable Realtime
 
-### 6.3 Règles de sécurité Realtime Database
+1. Go to [Supabase Dashboard](https://supabase.com/dashboard)
+2. Select your project
+3. Go to **Database** → **Replication**
+4. Enable realtime for these tables:
+   - `rider` (for location updates)
+   - `order` (for status updates)
+   - `notification` (for new notifications)
 
-Dans l'onglet **"Règles"** de Realtime Database, coller:
+### 6.3 Environment Variables
 
-```json
-{
-  "rules": {
-    "rider_locations": {
-      ".read": "auth != null",
-      "$riderId": {
-        ".write": "auth != null"
-      }
-    },
-    "order_updates": {
-      ".read": "auth != null",
-      ".write": "auth != null"
-    }
-  }
-}
-```
-
-### 6.4 Créer un compte de service (pour le backend)
-
-1. **Paramètres du projet** (⚙️ en haut à gauche) → **"Comptes de service"**
-2. **"Générer une nouvelle clé privée"** → Télécharger le fichier JSON
-3. Ouvrir le fichier JSON et extraire les champs:
+From your Supabase project settings:
 
 ```bash
-# Depuis le fichier JSON téléchargé:
-FIREBASE_PROJECT_ID=tara-delivery-XXXXX         # champ "project_id"
-FIREBASE_CLIENT_EMAIL=firebase-adminsdk-XXXXX@tara-delivery-XXXXX.iam.gserviceaccount.com  # champ "client_email"
-FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nXXXXXX\n-----END PRIVATE KEY-----\n"   # champ "private_key"
-FIREBASE_DATABASE_URL=https://tara-delivery-XXXXX-default-rtdb.europe-west1.firebasedatabase.app
+# Supabase (already configured)
+SUPABASE_URL="https://bziwkxynrxkpgifmljid.supabase.co"
+SUPABASE_SERVICE_KEY="your_supabase_service_key"
+SUPABASE_ANON_KEY="your_supabase_anon_key"
+
+# Web Push Notifications (VAPID keys - already generated)
+NEXT_PUBLIC_VAPID_PUBLIC_KEY=your_vapid_public_key
+VAPID_PUBLIC_KEY=your_vapid_public_key
+VAPID_PRIVATE_KEY=your_vapid_private_key
 ```
 
-> ⚠️ **Attention**: La `PRIVATE_KEY` contient des `\n` littéraux. Dans le fichier `.env`, garder les `\n` tels quels (entre guillemets). Dans la config Docker, ils seront interprétés correctement.
+### 6.4 Push Notifications (Web Push API)
 
-### 6.5 Activer Cloud Messaging (pour les push notifications)
-
-1. **Paramètres du projet** → **"Cloud Messaging"**
-2. Activer **"Firebase Cloud Messaging API (V1)"**
-3. Pour le frontend web, récupérer les clés dans **"Paramètres"** → **"Général"** → scroll jusqu'à "Vos applications" → Ajouter une app Web
+The project uses **Web Push API** (not FCM) for push notifications. This works in browsers without Firebase:
 
 ```bash
-# Clés pour le frontend (NEXT_PUBLIC_*)
-NEXT_PUBLIC_FIREBASE_API_KEY=AIzaSy...
-NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=tara-delivery-XXXXX.firebaseapp.com
-NEXT_PUBLIC_FIREBASE_PROJECT_ID=tara-delivery-XXXXX
-NEXT_PUBLIC_FIREBASE_DATABASE_URL=https://tara-delivery-XXXXX-default-rtdb.europe-west1.firebasedatabase.app
-NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=123456789012
-NEXT_PUBLIC_FIREBASE_APP_ID=1:123456789012:web:abcdef123456
+# Generate new VAPID keys if needed
+cd apps/api
+npx web-push generate-vapid-keys
 ```
+
+The frontend automatically requests notification permission and subscribes to updates via Supabase Realtime.
 
 ---
 
@@ -539,11 +517,11 @@ curl https://tara-delivery.cm/health
 
 Dans le panel Hostinger → **Domaines** → **DNS Zone**:
 
-| Type | Nom | Valeur          | TTL  |
-|------|-----|-----------------|------|
-| A    | @   | VOTRE_IP_VPS    | 300  |
-| A    | www | VOTRE_IP_VPS    | 300  |
-| A    | api | VOTRE_IP_VPS    | 300  |
+| Type | Nom | Valeur       | TTL |
+| ---- | --- | ------------ | --- |
+| A    | @   | VOTRE_IP_VPS | 300 |
+| A    | www | VOTRE_IP_VPS | 300 |
+| A    | api | VOTRE_IP_VPS | 300 |
 
 ---
 
@@ -553,19 +531,16 @@ Dans le panel Hostinger → **Domaines** → **DNS Zone**:
 
 Aller dans votre repo → **Settings** → **Secrets and variables** → **Actions** → **New repository secret**:
 
-| Nom du secret                    | Description                        | Exemple                  |
-|----------------------------------|------------------------------------|--------------------------|
-| `VPS_HOST`                       | IP de votre VPS                    | `185.XXX.XXX.XXX`        |
-| `VPS_USER`                       | Utilisateur SSH                    | `root` ou `ubuntu`       |
-| `VPS_SSH_KEY`                    | Clé SSH privée complète            | `-----BEGIN OPENSSH...`  |
-| `VPS_PORT`                       | Port SSH (défaut: 22)              | `22`                     |
-| `NEXT_PUBLIC_API_URL`            | URL API publique                   | `https://tara-delivery.cm/api` |
-| `NEXT_PUBLIC_FIREBASE_API_KEY`   | Clé API Firebase                   | `AIzaSy...`              |
-| `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN` | Domaine Auth Firebase            | `tara-delivery.firebaseapp.com` |
-| `NEXT_PUBLIC_FIREBASE_PROJECT_ID`| Project ID Firebase                | `tara-delivery-xxxxx`    |
-| `NEXT_PUBLIC_FIREBASE_DATABASE_URL` | URL Realtime DB                 | `https://tara-delivery-xxxxx.firebaseio.com` |
-| `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID` | Sender ID FCM          | `123456789012`           |
-| `NEXT_PUBLIC_FIREBASE_APP_ID`    | App ID Firebase                    | `1:xxx:web:xxx`          |
+| Nom du secret                   | Description             | Exemple                                          |
+| ------------------------------- | ----------------------- | ------------------------------------------------ |
+| `VPS_HOST`                      | IP de votre VPS         | `168.231.82.118`                                 |
+| `VPS_USER`                      | Utilisateur SSH         | `root`                                           |
+| `VPS_SSH_KEY`                   | Clé SSH privée complète | `-----BEGIN OPENSSH...`                          |
+| `VPS_PORT`                      | Port SSH (défaut: 22)   | `22`                                             |
+| `NEXT_PUBLIC_API_URL`           | URL API publique        | `https://api.englishlanguagecertificate.com/api` |
+| `NEXT_PUBLIC_SUPABASE_URL`      | URL Supabase            | `https://bziwkxynrxkpgifmljid.supabase.co`       |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Clé anon Supabase       | `sb_publishable_...`                             |
+| `NEXT_PUBLIC_VAPID_PUBLIC_KEY`  | Clé VAPID push          | `BBqZsjJuNEDxIc...`                              |
 
 ### 11.2 Créer la clé SSH pour le déploiement
 
@@ -696,9 +671,9 @@ free -h
 ## Support
 
 - 📧 Email: gillemomeni@gmail.com
-- 📱 WhatsApp: +7 9011805350  
+- 📱 WhatsApp: +7 9011805350
 - 🐛 Issues: https://github.com/menoc61/tara-delivery/issues
 
 ---
 
-*Guide rédigé par Gilles Momeni — TARA DELIVERY © 2026*
+_Guide rédigé par Gilles Momeni — TARA DELIVERY © 2026_

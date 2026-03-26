@@ -1,7 +1,7 @@
 # 📦 TARA DELIVERY — Full-Stack Delivery Platform
 
 > Production-ready delivery platform for Yaoundé, Cameroon  
-> Built with Next.js, Node.js, PostgreSQL, Suberbase, MTN MoMo & Orange Money
+> Built with Next.js, Node.js, PostgreSQL, Supabase, MTN MoMo & Orange Money
 
 ---
 
@@ -24,7 +24,7 @@
 │                         │                               │
 │         ┌───────────────┼────────────────┐              │
 │         ▼               ▼                ▼              │
-│    PostgreSQL       Suberbase          SMTP Server       │
+│    PostgreSQL       Supabase          SMTP Server       │
 │    (Prisma ORM)   (Realtime DB +    (Nodemailer)        │
 │                    Push Notifs)                         │
 │         │                                               │
@@ -82,6 +82,7 @@ tara-delivery/
 ## 🚀 Quick Start
 
 ### Prerequisites
+
 - Node.js >= 20
 - pnpm >= 9
 - PostgreSQL 16 (or Docker)
@@ -127,70 +128,76 @@ pnpm dev
 ```
 
 **URLs:**
+
 - 🌐 Web: http://localhost:3000
-- ⚙️  API: http://localhost:4000
+- ⚙️ API: http://localhost:4000
 - 📊 Prisma Studio: `cd apps/api && npx prisma studio`
 
 **Test credentials (after seed):**
-| Role     | Email                    | Password       |
+| Role | Email | Password |
 |----------|--------------------------|----------------|
-| Admin    | admin@tara-delivery.cm   | Admin@123456   |
-| Customer | customer@test.cm         | Customer@123   |
-| Rider    | rider@test.cm            | Rider@123      |
+| Admin | admin@tara-delivery.cm | Admin@123456 |
+| Customer | customer@test.cm | Customer@123 |
+| Rider | rider@test.cm | Rider@123 |
 
 ---
 
 ## 🔌 API Reference
 
 ### Authentication
-| Method | Endpoint               | Description              |
-|--------|------------------------|--------------------------|
-| POST   | /api/auth/register     | Register new user        |
-| POST   | /api/auth/login        | Email/password login     |
-| GET    | /api/auth/google       | Google OAuth redirect    |
-| POST   | /api/auth/refresh      | Refresh access token     |
+
+| Method | Endpoint                  | Description           |
+| ------ | ------------------------- | --------------------- |
+| POST   | /api/auth/register        | Register new user     |
+| POST   | /api/auth/login           | Email/password login  |
+| GET    | /api/auth/google          | Google OAuth redirect |
+| POST   | /api/auth/refresh         | Refresh access token  |
 | POST   | /api/auth/forgot-password | Send reset email      |
 | POST   | /api/auth/reset-password  | Reset with token      |
-| GET    | /api/auth/me           | Current user profile     |
+| GET    | /api/auth/me              | Current user profile  |
 
 ### Orders
-| Method | Endpoint                      | Description           | Auth     |
-|--------|-------------------------------|-----------------------|----------|
-| POST   | /api/orders                   | Create order          | Customer |
-| GET    | /api/orders/my                | My orders             | Customer |
-| GET    | /api/orders/available         | Available for riders  | Rider    |
-| GET    | /api/orders/:id               | Order details         | Owner    |
-| PATCH  | /api/orders/:id/status        | Update status         | Rider/Admin |
-| POST   | /api/orders/:id/assign        | Assign rider          | Admin    |
-| POST   | /api/orders/:id/cancel        | Cancel order          | Customer |
+
+| Method | Endpoint               | Description          | Auth        |
+| ------ | ---------------------- | -------------------- | ----------- |
+| POST   | /api/orders            | Create order         | Customer    |
+| GET    | /api/orders/my         | My orders            | Customer    |
+| GET    | /api/orders/available  | Available for riders | Rider       |
+| GET    | /api/orders/:id        | Order details        | Owner       |
+| PATCH  | /api/orders/:id/status | Update status        | Rider/Admin |
+| POST   | /api/orders/:id/assign | Assign rider         | Admin       |
+| POST   | /api/orders/:id/cancel | Cancel order         | Customer    |
 
 ### Payments
-| Method | Endpoint                      | Description           |
-|--------|-------------------------------|-----------------------|
-| POST   | /api/payments/initiate        | Start payment         |
-| GET    | /api/payments/order/:id       | Payment details       |
+
+| Method | Endpoint                       | Description          |
+| ------ | ------------------------------ | -------------------- |
+| POST   | /api/payments/initiate         | Start payment        |
+| GET    | /api/payments/order/:id        | Payment details      |
 | GET    | /api/payments/order/:id/verify | Verify payment       |
-| POST   | /api/webhooks/momo            | MTN MoMo webhook      |
-| POST   | /api/webhooks/orange          | Orange Money webhook  |
+| POST   | /api/webhooks/momo             | MTN MoMo webhook     |
+| POST   | /api/webhooks/orange           | Orange Money webhook |
 
 ### Riders
-| Method | Endpoint               | Description            |
-|--------|------------------------|------------------------|
-| POST   | /api/riders/register   | Become a rider         |
-| GET    | /api/riders/me         | My rider profile       |
-| PATCH  | /api/riders/me/status  | Set availability       |
+
+| Method | Endpoint                | Description           |
+| ------ | ----------------------- | --------------------- |
+| POST   | /api/riders/register    | Become a rider        |
+| GET    | /api/riders/me          | My rider profile      |
+| PATCH  | /api/riders/me/status   | Set availability      |
 | POST   | /api/riders/me/location | Update GPS location   |
-| POST   | /api/riders/rate       | Rate a completed ride  |
+| POST   | /api/riders/rate        | Rate a completed ride |
 
 ### Admin
-| Method | Endpoint                    | Description          |
-|--------|-----------------------------|----------------------|
-| GET    | /api/admin/dashboard        | Stats overview       |
-| GET    | /api/admin/analytics/revenue | Revenue chart data  |
-| GET    | /api/admin/analytics/orders | Orders by status     |
-| GET    | /api/admin/users            | All users            |
-| PATCH  | /api/admin/users/:id        | Update user          |
-| PATCH  | /api/admin/riders/:id/verify | Verify rider        |
+
+| Method | Endpoint                     | Description        |
+| ------ | ---------------------------- | ------------------ |
+| GET    | /api/admin/dashboard         | Stats overview     |
+| GET    | /api/admin/analytics/revenue | Revenue chart data |
+| GET    | /api/admin/analytics/orders  | Orders by status   |
+| GET    | /api/admin/users             | All users          |
+| PATCH  | /api/admin/users/:id         | Update user        |
+| PATCH  | /api/admin/riders/:id/verify | Verify rider       |
 
 ---
 
@@ -275,13 +282,13 @@ curl https://tara-delivery.cm/health
 
 ## ⚙️ GitHub Secrets for CI/CD
 
-| Secret              | Description                     |
-|---------------------|---------------------------------|
-| `VPS_HOST`          | VPS IP address                  |
-| `VPS_USER`          | SSH username                    |
-| `VPS_SSH_KEY`       | Private SSH key                 |
-| `VPS_PORT`          | SSH port (default 22)           |
-| `NEXT_PUBLIC_API_URL` | Production API URL            |
+| Secret                | Description           |
+| --------------------- | --------------------- |
+| `VPS_HOST`            | VPS IP address        |
+| `VPS_USER`            | SSH username          |
+| `VPS_SSH_KEY`         | Private SSH key       |
+| `VPS_PORT`            | SSH port (default 22) |
+| `NEXT_PUBLIC_API_URL` | Production API URL    |
 
 ---
 
@@ -331,4 +338,4 @@ MIT © 2026 Gilles Momeni / TARA DELIVERY
 
 ---
 
-*Made with ❤️ in Yaoundé, Cameroun 🇨🇲*
+_Made with ❤️ in Yaoundé, Cameroun 🇨🇲_

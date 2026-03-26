@@ -28,25 +28,32 @@ const app = express();
 const PORT = process.env.PORT || 4000;
 
 // ── Initialize External Services ─────────────────────────
-initFirebase();
+// initFirebase(); // Now using Supabase Realtime instead
 
 // ── Security Middleware ───────────────────────────────────
-app.use(helmet({
-  crossOriginResourcePolicy: { policy: "cross-origin" },
-}));
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+  }),
+);
 
-app.use(cors({
-  origin: process.env.CORS_ORIGIN?.split(",") || ["http://localhost:3000"],
-  credentials: true,
-  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
-}));
+app.use(
+  cors({
+    origin: process.env.CORS_ORIGIN?.split(",") || ["http://localhost:3000"],
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  }),
+);
 
 // Rate limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 100,
-  message: { success: false, error: "Too many requests, please try again later." },
+  message: {
+    success: false,
+    error: "Too many requests, please try again later.",
+  },
   standardHeaders: true,
   legacyHeaders: false,
 });
@@ -54,7 +61,10 @@ const limiter = rateLimit({
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 10,
-  message: { success: false, error: "Too many auth attempts, please try again later." },
+  message: {
+    success: false,
+    error: "Too many auth attempts, please try again later.",
+  },
 });
 
 app.use(limiter);
@@ -68,9 +78,11 @@ app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
 // ── Logging ───────────────────────────────────────────────
 if (process.env.NODE_ENV !== "test") {
-  app.use(morgan("combined", {
-    stream: { write: (msg) => logger.http(msg.trim()) },
-  }));
+  app.use(
+    morgan("combined", {
+      stream: { write: (msg) => logger.http(msg.trim()) },
+    }),
+  );
 }
 
 // ── Health Check ──────────────────────────────────────────

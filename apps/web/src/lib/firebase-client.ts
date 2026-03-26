@@ -1,83 +1,122 @@
-import { initializeApp, getApps, FirebaseApp } from "firebase/app";
-import { getDatabase, ref, onValue, off, Database } from "firebase/database";
-import { getMessaging, getToken, onMessage, Messaging } from "firebase/messaging";
+import { createClient, RealtimeChannel } from "@supabase/supabase-js";
 import { GeoLocation, OrderUpdate } from "@tara/types";
 
-const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  databaseURL: process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-};
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-let app: FirebaseApp;
-let db: Database;
-let messaging: Messaging | null = null;
+const supabase =
+  supabaseUrl && supabaseAnonKey
+    ? createClient(supabaseUrl, supabaseAnonKey)
+    : null;
 
-export const initFirebaseClient = () => {
-  if (getApps().length === 0) {
-    app = initializeApp(firebaseConfig);
-  } else {
-    app = getApps()[0];
+let locationChannel: RealtimeChannel | null = null;
+let orderChannel: RealtimeChannel | null = null;
+
+export const initSupabaseClient = () => {
+  if (!supabase) {
+    console.warn(
+      "Supabase not configured. Realtime features will be disabled.",
+    );
   }
-  db = getDatabase(app);
-
-  if (typeof window !== "undefined" && "serviceWorker" in navigator) {
-    try {
-      messaging = getMessaging(app);
-    } catch {
-      console.warn("Firebase messaging not available");
-    }
-  }
-
-  return { app, db };
+  return supabase;
 };
 
 export const subscribeToRiderLocation = (
   riderId: string,
-  callback: (location: GeoLocation & { heading?: number; speed?: number }) => void
+  callback: (
+    location: GeoLocation & { heading?: number; speed?: number },
+  ) => void,
 ) => {
-  if (!db) initFirebaseClient();
-  const locationRef = ref(db, `rider_locations/${riderId}`);
-  onValue(locationRef, (snapshot) => {
-    if (snapshot.exists()) callback(snapshot.val());
-  });
-  return () => off(locationRef);
+  if (!supabase) return () => {};
+
+  if (locationChannel) {
+    supabase.removeChannel(locationChannel);
+  }
+
+  locationChannel = supabase
+    .channel(`rider-location:${riderId}`)
+    .on(
+      "postgres_changes",
+      {
+        event: "UPDATE",
+        schema: "public",
+        table: "Rider",
+        filter: `userId=eq.${riderId}`,
+      },
+      (payload) => {
+        const newRec = payload.new as {
+          currentLat: number;
+          currentLng: number;
+        };
+        callback({
+          lat: newRec.currentLat,
+          lng: newRec.currentLng,
+        });
+      },
+    )
+    .subscribe();
+
+  return () => {
+    if (locationChannel) {
+      supabase.removeChannel(locationChannel);
+      locationChannel = null;
+    }
+  };
 };
 
 export const subscribeToOrderUpdates = (
   orderId: string,
-  callback: (update: OrderUpdate) => void
+  callback: (update: OrderUpdate) => void,
 ) => {
-  if (!db) initFirebaseClient();
-  const orderRef = ref(db, `order_updates/${orderId}`);
-  onValue(orderRef, (snapshot) => {
-    if (snapshot.exists()) {
-      const updates = snapshot.val();
-      const latest = Object.values(updates).at(-1);
-      if (latest) callback(latest as OrderUpdate);
+  if (!supabase) return () => {};
+
+  if (orderChannel) {
+    supabase.removeChannel(orderChannel);
+  }
+
+  orderChannel = supabase
+    .channel(`order-updates:${orderId}`)
+    .on(
+      "postgres_changes",
+      {
+        event: "UPDATE",
+        schema: "public",
+        table: "Order",
+        filter: `id=eq.${orderId}`,
+      },
+      (payload) => {
+        const newRec = payload.new as { status: string };
+        callback({
+          status: newRec.status,
+        } as OrderUpdate);
+      },
+    )
+    .subscribe();
+
+  return () => {
+    if (orderChannel) {
+      supabase.removeChannel(orderChannel);
+      orderChannel = null;
     }
-  });
-  return () => off(orderRef);
+  };
 };
 
-export const requestNotificationPermission = async (): Promise<string | null> => {
-  if (!messaging) return null;
+export const requestNotificationPermission = async (): Promise<
+  string | null
+> => {
+  if (typeof window === "undefined") return null;
+
   try {
     const permission = await Notification.requestPermission();
     if (permission !== "granted") return null;
-    const token = await getToken(messaging, {
-      vapidKey: process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY,
-    });
-    return token;
+    return "subscribed";
   } catch {
     return null;
   }
 };
 
 export const onForegroundMessage = (callback: (payload: unknown) => void) => {
-  if (!messaging) return () => {};
-  return onMessage(messaging, callback);
+  return () => {};
 };
+
+export { supabase };
