@@ -11,7 +11,7 @@
 3. [Configuration des variables d'environnement](#3-variables-denvironnement)
 4. [MTN MoMo — Configuration étape par étape](#4-mtn-momo)
 5. [Orange Money — Configuration étape par étape](#5-orange-money)
-6. [Firebase — Realtime DB + Notifications](#6-firebase)
+6. [Supabase — Database & Realtime](#6-supabase)
 7. [Google OAuth](#7-google-oauth)
 8. [Base de données Prisma](#8-prisma--base-de-données)
 9. [Déploiement Docker en production](#9-déploiement-docker)
@@ -38,7 +38,7 @@
 
 - [ ] Compte **MTN MoMo Developer** → https://momodeveloper.mtn.com
 - [ ] Compte **Orange Developer** → https://developer.orange.com
-- [ ] Projet **Firebase** → https://console.firebase.google.com
+- [ ] Projet **Supabase** → https://supabase.com
 - [ ] Projet **Google Cloud** (pour OAuth) → https://console.cloud.google.com
 - [ ] VPS **Hostinger** (Ubuntu 22.04 LTS) → https://hostinger.cm
 - [ ] Nom de domaine (ex: tara-delivery.cm)
@@ -281,74 +281,29 @@ Commande confirmée automatiquement
 
 ---
 
-## 6. Firebase
+## 6. Supabase
 
-### 6.1 Créer le projet Firebase
+### 6.1 Créer le projet Supabase
 
-1. Aller sur **https://console.firebase.google.com**
-2. **"Créer un projet"** → Nom: "tara-delivery"
-3. Désactiver Google Analytics si non nécessaire → **"Créer le projet"**
+1. Aller sur **https://supabase.com** et créer un nouveau projet.
+2. Une fois créé, récupérer les informations dans **Settings -> API**:
+   - `Project URL` → `SUPABASE_URL`
+   - `anon` public API key → `SUPABASE_ANON_KEY`
+   - `service_role` secret key → `SUPABASE_SERVICE_KEY`
 
-### 6.2 Activer Realtime Database
+### 6.2 Activer le Temps Réel (Realtime)
 
-1. Dans le menu gauche → **"Realtime Database"**
-2. **"Créer une base de données"**
-3. Choisir région: **"Belgium (europe-west1)"** (la plus proche de l'Afrique centrale)
-4. Mode de démarrage: **"Mode verrouillé"** (on configurera les règles)
-5. Copier l'URL: `https://tara-delivery-XXXXX-default-rtdb.europe-west1.firebasedatabase.app`
+1. Dans le tableau de bord Supabase, aller dans **Database -> Replication**.
+2. Activer le mode Realtime pour les tables: `rider`, `order`, et `notification`.
 
-### 6.3 Règles de sécurité Realtime Database
+### 6.3 Configuration du Web Push (Notifications)
 
-Dans l'onglet **"Règles"** de Realtime Database, coller:
+TARA Delivery utilise l'API Web Push native (remplaçant FCM).
 
-```json
-{
-  "rules": {
-    "rider_locations": {
-      ".read": "auth != null",
-      "$riderId": {
-        ".write": "auth != null"
-      }
-    },
-    "order_updates": {
-      ".read": "auth != null",
-      ".write": "auth != null"
-    }
-  }
-}
-```
-
-### 6.4 Créer un compte de service (pour le backend)
-
-1. **Paramètres du projet** (⚙️ en haut à gauche) → **"Comptes de service"**
-2. **"Générer une nouvelle clé privée"** → Télécharger le fichier JSON
-3. Ouvrir le fichier JSON et extraire les champs:
-
-```bash
-# Depuis le fichier JSON téléchargé:
-FIREBASE_PROJECT_ID=tara-delivery-XXXXX         # champ "project_id"
-FIREBASE_CLIENT_EMAIL=firebase-adminsdk-XXXXX@tara-delivery-XXXXX.iam.gserviceaccount.com  # champ "client_email"
-FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nXXXXXX\n-----END PRIVATE KEY-----\n"   # champ "private_key"
-FIREBASE_DATABASE_URL=https://tara-delivery-XXXXX-default-rtdb.europe-west1.firebasedatabase.app
-```
-
-> ⚠️ **Attention**: La `PRIVATE_KEY` contient des `\n` littéraux. Dans le fichier `.env`, garder les `\n` tels quels (entre guillemets). Dans la config Docker, ils seront interprétés correctement.
-
-### 6.5 Activer Cloud Messaging (pour les push notifications)
-
-1. **Paramètres du projet** → **"Cloud Messaging"**
-2. Activer **"Firebase Cloud Messaging API (V1)"**
-3. Pour le frontend web, récupérer les clés dans **"Paramètres"** → **"Général"** → scroll jusqu'à "Vos applications" → Ajouter une app Web
-
-```bash
-# Clés pour le frontend (NEXT_PUBLIC_*)
-NEXT_PUBLIC_FIREBASE_API_KEY=AIzaSy...
-NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=tara-delivery-XXXXX.firebaseapp.com
-NEXT_PUBLIC_FIREBASE_PROJECT_ID=tara-delivery-XXXXX
-NEXT_PUBLIC_FIREBASE_DATABASE_URL=https://tara-delivery-XXXXX-default-rtdb.europe-west1.firebasedatabase.app
-NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=123456789012
-NEXT_PUBLIC_FIREBASE_APP_ID=1:123456789012:web:abcdef123456
-```
+1. Générer les clés VAPID: `npx web-push generate-vapid-keys`
+2. Copier les clés dans votre fichier `.env`:
+   - `VAPID_PUBLIC_KEY`
+   - `VAPID_PRIVATE_KEY`
 
 ---
 
@@ -559,13 +514,10 @@ Aller dans votre repo → **Settings** → **Secrets and variables** → **Actio
 | `VPS_USER`                       | Utilisateur SSH                    | `root` ou `ubuntu`       |
 | `VPS_SSH_KEY`                    | Clé SSH privée complète            | `-----BEGIN OPENSSH...`  |
 | `VPS_PORT`                       | Port SSH (défaut: 22)              | `22`                     |
-| `NEXT_PUBLIC_API_URL`            | URL API publique                   | `https://tara-delivery.cm/api` |
-| `NEXT_PUBLIC_FIREBASE_API_KEY`   | Clé API Firebase                   | `AIzaSy...`              |
-| `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN` | Domaine Auth Firebase            | `tara-delivery.firebaseapp.com` |
-| `NEXT_PUBLIC_FIREBASE_PROJECT_ID`| Project ID Firebase                | `tara-delivery-xxxxx`    |
-| `NEXT_PUBLIC_FIREBASE_DATABASE_URL` | URL Realtime DB                 | `https://tara-delivery-xxxxx.firebaseio.com` |
-| `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID` | Sender ID FCM          | `123456789012`           |
-| `NEXT_PUBLIC_FIREBASE_APP_ID`    | App ID Firebase                    | `1:xxx:web:xxx`          |
+| `NEXT_PUBLIC_API_URL`            | URL API publique                   | `https://api.tara-delivery.cm/api` |
+| `NEXT_PUBLIC_SUPABASE_URL`       | URL de votre projet Supabase       | `https://xxx.supabase.co` |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY`  | Clé publique Supabase              | `ey...`                  |
+| `NEXT_PUBLIC_VAPID_PUBLIC_KEY`   | Clé publique Web Push              | `BB...`                  |
 
 ### 11.2 Créer la clé SSH pour le déploiement
 

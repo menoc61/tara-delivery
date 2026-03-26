@@ -18,7 +18,7 @@ const inter = Inter({
 });
 
 export const viewport: Viewport = {
-  themeColor: "#00503a",
+  themeColor: "#FF6B2C",
   width: "device-width",
   initialScale: 1,
 };
@@ -50,13 +50,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             style: {
               fontFamily: "var(--font-inter)",
               fontSize: "14px",
-              background: "#191c1b",
-              color: "#f8faf7",
-              borderRadius: "0.75rem",
+              background: "#111827",
+              color: "#FFFFFF",
+              borderRadius: "1rem",
               padding: "12px 16px",
             },
             success: {
-              iconTheme: { primary: "#9ef4d0", secondary: "#191c1b" },
+              iconTheme: { primary: "#10B981", secondary: "#111827" },
             },
             error: {
               iconTheme: { primary: "#f28b82", secondary: "#191c1b" },

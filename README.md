@@ -1,7 +1,7 @@
 # 📦 TARA DELIVERY — Full-Stack Delivery Platform
 
 > Production-ready delivery platform for Yaoundé, Cameroon  
-> Built with Next.js, Node.js, PostgreSQL, Suberbase, MTN MoMo & Orange Money
+> Built with Next.js, Node.js, PostgreSQL, Supabase, MTN MoMo & Orange Money
 
 ---
 
@@ -24,10 +24,12 @@
 │                         │                               │
 │         ┌───────────────┼────────────────┐              │
 │         ▼               ▼                ▼              │
-│    PostgreSQL       Suberbase          SMTP Server       │
-│    (Prisma ORM)   (Realtime DB +    (Nodemailer)        │
-│                    Push Notifs)                         │
-│         │                                               │
+│    PostgreSQL       Supabase          SMTP Server       │
+│    (Prisma ORM)   (Realtime DB)    (Nodemailer)        │
+│                         │                               │
+│                   Web Push API                          │
+│                  (Notifications)                        │
+│                         │                               │
 │    MTN MoMo & Orange Money APIs                         │
 └─────────────────────────────────────────────────────────┘
 ```
@@ -106,11 +108,11 @@ cp .env.example .env
 
 ```bash
 # Start all services
-docker compose up -d
+docker-compose up -d
 
 # Run migrations + seed
-docker compose exec api npx prisma migrate dev
-docker compose exec api npx prisma db seed
+docker-compose exec api npx prisma migrate dev
+docker-compose exec api npx prisma db seed
 ```
 
 ### 4. Or start locally
@@ -213,29 +215,12 @@ pnpm dev
 
 ---
 
-## 🔥 Suberbase Setup
+## 🔥 Supabase Setup
 
-1. Create Suberbase project at [console.Suberbase.google.com](https://console.Suberbase.google.com)
-2. Enable **Realtime Database** and **Cloud Messaging**
-3. Download service account JSON → extract values into `.env`
-4. Set Realtime DB rules:
-
-```json
-{
-  "rules": {
-    "rider_locations": {
-      ".read": "auth != null",
-      "$riderId": {
-        ".write": "auth.uid == $riderId"
-      }
-    },
-    "order_updates": {
-      ".read": "auth != null",
-      ".write": "auth != null"
-    }
-  }
-}
-```
+1. Create Supabase project at [supabase.com](https://supabase.com)
+2. Get your `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_KEY` from the dashboard.
+3. Enable **Realtime** for `rider` and `order` tables in the Supabase Dashboard (Database -> Replication).
+4. Web Push Notifications are used instead of FCM. Ensure `VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY` are set in `.env`.
 
 ---
 

@@ -12,7 +12,12 @@ export const notificationService = {
     body: string;
     data?: Record<string, unknown>;
   }) {
-    return prisma.notification.create({ data });
+    return prisma.notification.create({
+      data: {
+        ...data,
+        data: data.data as any,
+      },
+    });
   },
 
   async getUserNotifications(userId: string, page = 1, limit = 20) {
@@ -162,5 +167,26 @@ export const notificationService = {
 
   async updatePushSubscription(userId: string, subscription: string | null) {
     return prisma.user.update({ where: { id: userId }, data: { pushSubscription: subscription } });
+  },
+
+  async unsubscribePush(userId: string, endpoint: string) {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { pushSubscription: true },
+    });
+
+    if (user?.pushSubscription) {
+      try {
+        const currentSub = JSON.parse(user.pushSubscription);
+        if (currentSub.endpoint === endpoint) {
+          return prisma.user.update({
+            where: { id: userId },
+            data: { pushSubscription: null },
+          });
+        }
+      } catch (err) {
+        logger.error("Failed to parse push subscription during unsubscribe:", err);
+      }
+    }
   },
 };

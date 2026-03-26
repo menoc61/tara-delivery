@@ -153,7 +153,7 @@ export default function RiderDashboard() {
         {/* Stats */}
         <div className="grid grid-cols-3 gap-3">
           {[
-            { label: "Livraisons", value: riderProfile?._count?.orders || 0, icon: Package, color: "bg-blue-50 text-blue-600" },
+            { label: "Livraisons", value: (riderProfile as any)?._count?.orders || 0, icon: Package, color: "bg-blue-50 text-blue-600" },
             { label: "Note", value: `${((riderProfile?.rating as number) || 0).toFixed(1)}★`, icon: CheckCircle, color: "bg-amber-50 text-amber-600", raw: true },
             { label: "Revenus (XAF)", value: "—", icon: DollarSign, color: "bg-emerald-50 text-emerald-600", raw: true },
           ].map((s) => (
@@ -268,13 +268,13 @@ export default function RiderDashboard() {
                   </div>
 
                   <div className="flex items-center gap-4 text-xs text-gray-500 mb-3">
-                    {order.distance && (
+                    {!!order.distance && (
                       <span className="flex items-center gap-1">
                         <Navigation className="w-3 h-3" />
                         {(order.distance as number).toFixed(1)} km
                       </span>
                     )}
-                    {order.estimatedDuration && (
+                    {!!order.estimatedDuration && (
                       <span className="flex items-center gap-1">
                         <Clock className="w-3 h-3" />
                         ~{order.estimatedDuration as number} min

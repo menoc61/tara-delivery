@@ -3,14 +3,18 @@ import { verifyAccessToken } from "../config/jwt";
 import { prisma } from "../config/database";
 import { UserRole, JwtPayload } from "@tara/types";
 
-export interface AuthRequest extends Request {
-  user?: {
-    id: string;
-    email: string;
-    role: UserRole;
-    name: string;
-  };
+declare global {
+  namespace Express {
+    interface User {
+      id: string;
+      email: string;
+      role: UserRole;
+      name: string;
+    }
+  }
 }
+
+export interface AuthRequest extends Request {}
 
 export const authenticate = async (
   req: AuthRequest,
@@ -37,7 +41,7 @@ export const authenticate = async (
       return;
     }
 
-    req.user = user;
+    req.user = user as any;
     next();
   } catch {
     res.status(401).json({ success: false, message: "Invalid or expired token" });

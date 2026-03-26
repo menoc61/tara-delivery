@@ -1,0 +1,49 @@
+version: '3.8'
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: ./docker/api.Dockerfile
+    container_name: tara-api
+    restart: always
+    environment:
+      - NODE_ENV=production
+      - PORT=4000
+      - DATABASE_URL=${DATABASE_URL}
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}
+      - SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
+      - JWT_SECRET=${JWT_SECRET}
+      - REFRESH_TOKEN_SECRET=${REFRESH_TOKEN_SECRET}
+      - VAPID_PUBLIC_KEY=${VAPID_PUBLIC_KEY}
+      - VAPID_PRIVATE_KEY=${VAPID_PRIVATE_KEY}
+      - CORS_ORIGIN=${CORS_ORIGIN}
+      - MOMO_SUBSCRIPTION_KEY=${MOMO_SUBSCRIPTION_KEY}
+      - MOMO_API_USER=${MOMO_API_USER}
+      - MOMO_API_KEY=${MOMO_API_KEY}
+      - MOMO_BASE_URL=${MOMO_BASE_URL}
+      - ORANGE_CLIENT_ID=${ORANGE_CLIENT_ID}
+      - ORANGE_CLIENT_SECRET=${ORANGE_CLIENT_SECRET}
+      - ORANGE_MERCHANT_KEY=${ORANGE_MERCHANT_KEY}
+      - SMTP_HOST=${SMTP_HOST}
+      - SMTP_PORT=${SMTP_PORT}
+      - SMTP_USER=${SMTP_USER}
+      - SMTP_PASS=${SMTP_PASS}
+      - EMAIL_FROM=${EMAIL_FROM}
+    ports:
+      - "4000:4000"
+
+  nginx:
+    image: nginx:alpine
+    container_name: tara-nginx
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./docker/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./certbot/conf:/etc/letsencrypt:ro
+      - ./certbot/www:/var/www/certbot:ro
+    depends_on:
+      - api

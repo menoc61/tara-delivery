@@ -85,11 +85,11 @@ export default function HomePage() {
       <header className="fixed top-0 w-full z-50 glass border-b border-out_var/20">
         <div className="max-w-7xl mx-auto px-5 sm:px-8 h-16 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2.5 group">
-            <div className="w-9 h-9 rounded-lg flex items-center justify-center"
-                 style={{ background: "linear-gradient(135deg,#00503a,#006a4e)" }}>
-              <Package className="w-5 h-5 text-white" />
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg transform group-hover:scale-110 transition-transform"
+                 style={{ background: "linear-gradient(135deg, var(--brand-primary), var(--brand-secondary))" }}>
+              <Package className="w-6 h-6 text-white" />
             </div>
-            <span className="font-display font-extrabold text-lg tracking-tight text-on_surface">
+            <span className="font-display font-extrabold text-xl tracking-tight text-on_surface">
               TARA<span className="text-primary"> DELIVERY</span>
             </span>
           </Link>
@@ -117,17 +117,17 @@ export default function HomePage() {
                style={{ background: "var(--bg-hero-mesh, radial-gradient(ellipse at 20% 50%,rgba(0,80,58,.05) 0%,transparent 60%),radial-gradient(ellipse at 80% 20%,rgba(254,183,0,.07) 0%,transparent 50%))" }}>
 
         {/* Decorative blobs */}
-        <div className="absolute top-20 right-1/4 w-80 h-80 rounded-full opacity-[0.04] -z-10"
-             style={{ background: "radial-gradient(#00503a, transparent)", filter: "blur(60px)" }} />
-        <div className="absolute bottom-10 left-10 w-56 h-56 rounded-full opacity-[0.05] -z-10"
-             style={{ background: "radial-gradient(#feb700, transparent)", filter: "blur(50px)" }} />
+        <div className="absolute top-20 right-1/4 w-80 h-80 rounded-full opacity-[0.08] -z-10"
+             style={{ background: "radial-gradient(var(--brand-primary), transparent)", filter: "blur(60px)" }} />
+        <div className="absolute bottom-10 left-10 w-56 h-56 rounded-full opacity-[0.1] -z-10"
+             style={{ background: "radial-gradient(var(--brand-secondary), transparent)", filter: "blur(50px)" }} />
 
         <div className="max-w-7xl mx-auto grid lg:grid-cols-2 gap-16 items-center">
           {/* Left copy */}
           <div className="relative z-10">
-            <div data-hero className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-bold mb-7"
-                 style={{ background: "rgba(0,80,58,.08)", color: "var(--primary)" }}>
-              <Zap className="w-3.5 h-3.5" />
+            <div data-hero className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold mb-8 shadow-sm"
+                 style={{ background: "var(--primary-fixed)", color: "var(--brand-dark)" }}>
+              <Zap className="w-4 h-4 text-primary" />
               Livraison express — Yaoundé
             </div>
 
@@ -146,32 +146,32 @@ export default function HomePage() {
               Payez avec <strong>MTN MoMo</strong> ou <strong>Orange Money</strong>.
             </p>
 
-            <div data-hero className="flex flex-col sm:flex-row gap-3">
-              <Link href="/auth/register" className="btn-primary text-base px-8 py-4">
+            <div data-hero className="flex flex-col sm:flex-row gap-4">
+              <Link href="/auth/register" className="btn-primary text-base px-10 py-4 shadow-xl">
                 Commander une livraison
-                <ArrowRight className="w-5 h-5" />
+                <ArrowRight className="w-5 h-5 ml-2" />
               </Link>
-              <Link href="/auth/register?role=rider" className="btn-ghost text-base px-8 py-4 border"
-                    style={{ borderColor: "rgba(0,80,58,.2)" }}>
+              <Link href="/auth/register?role=rider" className="btn-ghost text-base px-10 py-4 border-2 rounded-xl transition-all"
+                    style={{ borderColor: "var(--sur-high)" }}>
                 Devenir livreur
               </Link>
             </div>
 
             {/* Social proof */}
-            <div data-hero className="flex items-center gap-6 mt-10 pt-8"
-                 style={{ borderTop: "1px solid rgba(190,201,194,.3)" }}>
-              <div className="flex -space-x-2">
+            <div data-hero className="flex items-center gap-6 mt-12 pt-8"
+                 style={{ borderTop: "1px solid var(--sur-high)" }}>
+              <div className="flex -space-x-3">
                 {["JM", "PK", "SA", "EM"].map((i, idx) => (
-                  <div key={idx} className="w-8 h-8 rounded-full border-2 border-white flex items-center justify-center text-[9px] font-bold text-white"
-                       style={{ background: ["#00503a","#006a4e","#feb700","#7c5800"][idx] }}>
+                  <div key={idx} className="w-10 h-10 rounded-full border-2 border-white flex items-center justify-center text-[10px] font-bold text-white shadow-sm"
+                       style={{ background: ["#FF6B2C","#EA580C","#F59E0B","#3B82F6"][idx] }}>
                     {i}
                   </div>
                 ))}
               </div>
               <div>
-                <div className="flex text-[#feb700]">{"★★★★★"}</div>
-                <p className="text-xs mt-0.5" style={{ color: "var(--on-sur-var)" }}>
-                  +500 clients satisfaits
+                <div className="flex text-amber-500">{"★★★★★"}</div>
+                <p className="text-sm font-medium mt-1" style={{ color: "var(--on-sur-var)" }}>
+                  +500 clients satisfaits à Yaoundé
                 </p>
               </div>
             </div>
@@ -194,8 +194,8 @@ export default function HomePage() {
                 {/* App content */}
                 <div className="h-full flex flex-col">
                   <div className="px-6 pt-10 pb-6 text-white"
-                       style={{ background: "linear-gradient(160deg,#00503a,#006a4e)" }}>
-                    <p className="text-white/70 text-xs mb-1">Bonjour Jean-Pierre 👋</p>
+                       style={{ background: "linear-gradient(160deg, var(--brand-primary), var(--brand-secondary))" }}>
+                    <p className="text-white/80 text-xs mb-1">Bonjour Jean-Pierre 👋</p>
                     <h3 className="font-display font-bold text-xl mb-1">Que livrons-nous?</h3>
                     <p className="text-white/60 text-[11px]">3 livreurs disponibles près de vous</p>
                   </div>
@@ -315,7 +315,7 @@ export default function HomePage() {
               <div key={step.n} data-step className="relative">
                 <div className="flex items-start gap-4 mb-4">
                   <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-2xl flex-shrink-0"
-                       style={{ background: "linear-gradient(135deg,#00503a,#006a4e)" }}>
+                       style={{ background: "linear-gradient(135deg, var(--brand-primary), var(--brand-secondary))" }}>
                     {step.e}
                   </div>
                   <div>
@@ -337,29 +337,34 @@ export default function HomePage() {
 
       {/* ── CTA ───────────────────────────────────────── */}
       <section ref={ctaRef} className="py-24 px-5">
-        <div data-cta className="max-w-2xl mx-auto text-center rounded-3xl p-12"
-             style={{ background: "linear-gradient(135deg,#00503a,#006a4e)" }}>
-          <div className="w-14 h-14 rounded-2xl mx-auto mb-6 flex items-center justify-center"
-               style={{ background: "rgba(255,255,255,.15)" }}>
-            <Bike className="w-7 h-7 text-white" />
-          </div>
-          <h2 className="font-display text-3xl font-extrabold text-white mb-3">
-            Prêt à livrer?
-          </h2>
-          <p className="text-white/75 mb-8 text-base leading-relaxed">
-            Rejoignez des centaines de Yaoundéens qui font confiance à TARA DELIVERY.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <Link href="/auth/register"
-                  className="inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-md font-bold text-sm uppercase tracking-wide text-primary bg-white hover:bg-sur_low transition-all">
-              Créer un compte
-              <ArrowRight className="w-4 h-4" />
-            </Link>
-            <Link href="/auth/register?role=rider"
-                  className="inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-md font-bold text-sm uppercase tracking-wide text-white transition-all"
-                  style={{ background: "rgba(255,255,255,.12)", outline: "1px solid rgba(255,255,255,.25)" }}>
-              Devenir livreur
-            </Link>
+        <div data-cta className="max-w-3xl mx-auto text-center rounded-[2.5rem] p-12 lg:p-16 shadow-2xl relative overflow-hidden"
+             style={{ background: "linear-gradient(135deg, var(--brand-primary), var(--brand-dark))" }}>
+          {/* Decorative circles */}
+          <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-2xl" />
+          <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-black/10 rounded-full blur-2xl" />
+
+          <div className="relative z-10">
+            <div className="w-16 h-16 rounded-2xl mx-auto mb-8 flex items-center justify-center shadow-inner"
+                 style={{ background: "rgba(255,255,255,.2)" }}>
+              <Bike className="w-8 h-8 text-white" />
+            </div>
+            <h2 className="font-display text-4xl lg:text-5xl font-extrabold text-white mb-6">
+              Prêt à livrer?
+            </h2>
+            <p className="text-white/80 mb-10 text-lg lg:text-xl max-w-xl mx-auto leading-relaxed">
+              Rejoignez des centaines de Yaoundéens qui font confiance à TARA DELIVERY chaque jour.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Link href="/auth/register"
+                    className="inline-flex items-center justify-center gap-2 px-10 py-4 rounded-xl font-bold text-sm uppercase tracking-wide text-primary bg-white hover:bg-orange-50 transition-all shadow-lg">
+                Créer un compte
+                <ArrowRight className="w-5 h-5" />
+              </Link>
+              <Link href="/auth/register?role=rider"
+                    className="inline-flex items-center justify-center gap-2 px-10 py-4 rounded-xl font-bold text-sm uppercase tracking-wide text-white transition-all border-2 border-white/30 hover:bg-white/10">
+                Devenir livreur
+              </Link>
+            </div>
           </div>
         </div>
       </section>

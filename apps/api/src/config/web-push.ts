@@ -1,5 +1,5 @@
 import webPush from 'web-push';
-import { logger } from '../utils/logger';
+import { logger } from './logger';
 
 const vapidPublicKey = process.env.VAPID_PUBLIC_KEY;
 const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY;
@@ -22,7 +22,7 @@ export interface PushNotificationPayload {
   image?: string;
   tag?: string;
   requireInteraction?: boolean;
-  actions?: Array<{ action: string; title: string }&gt;;
+  actions?: Array<{ action: string; title: string }>;
   data?: Record<string, unknown>;
 }
 

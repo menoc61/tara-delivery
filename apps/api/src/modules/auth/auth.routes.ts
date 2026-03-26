@@ -12,7 +12,7 @@ import {
   resetPasswordSchema,
 } from "@tara/zod-schemas";
 
-const router = Router();
+const router: Router = Router();
 
 // Configure Google OAuth Strategy
 passport.use(
@@ -27,7 +27,7 @@ passport.use(
         id: profile.id,
         email: profile.emails?.[0]?.value || "",
         name: profile.displayName,
-        avatar: profile.photos?.[0]?.value,
+        role: "CUSTOMER" as any, // default
       });
     }
   )

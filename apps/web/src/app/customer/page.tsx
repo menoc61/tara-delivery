@@ -75,16 +75,19 @@ export default function CustomerDashboard() {
 
       <div className="max-w-4xl mx-auto px-4 py-6 space-y-6">
         {/* Welcome + CTA */}
-        <div className="bg-gradient-to-r from-brand-500 to-orange-500 rounded-3xl p-6 text-white">
-          <p className="text-white/80 text-sm mb-1">Bonjour,</p>
-          <h1 className="text-2xl font-bold font-display mb-4">{user?.name} 👋</h1>
-          <Link
-            href="/customer/new-order"
-            className="inline-flex items-center gap-2 bg-white text-brand-600 font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-gray-50 transition-colors shadow-md"
-          >
-            <Plus className="w-4 h-4" />
-            Nouvelle livraison
-          </Link>
+        <div className="bg-gradient-to-r from-brand-500 to-brand-600 rounded-3xl p-6 text-white shadow-lg relative overflow-hidden">
+          <div className="absolute -top-10 -right-10 w-32 h-32 bg-white/10 rounded-full blur-xl" />
+          <div className="relative z-10">
+            <p className="text-white/80 text-sm mb-1">Bonjour,</p>
+            <h1 className="text-2xl font-bold font-display mb-4">{user?.name} 👋</h1>
+            <Link
+              href="/customer/new-order"
+              className="inline-flex items-center gap-2 bg-white text-brand-600 font-bold px-6 py-3 rounded-xl text-sm hover:bg-orange-50 transition-all shadow-md active:scale-95"
+            >
+              <Plus className="w-4 h-4" />
+              Nouvelle livraison
+            </Link>
+          </div>
         </div>
 
         {/* Quick stats */}

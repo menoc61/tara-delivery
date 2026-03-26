@@ -139,7 +139,8 @@ export const notificationsApi = {
   getUnreadCount: () => apiClient.get("/notifications/unread-count"),
   markRead: (id: string) => apiClient.patch(`/notifications/${id}/read`),
   markAllRead: () => apiClient.patch("/notifications/mark-all-read"),
-  updateFcmToken: (token: string) => apiClient.post("/notifications/fcm-token", { token }),
+  subscribe: (subscription: unknown) => apiClient.post("/notifications/subscribe", subscription),
+  unsubscribe: (endpoint: string) => apiClient.post("/notifications/unsubscribe", { endpoint }),
 };
 
 export const adminApi = {

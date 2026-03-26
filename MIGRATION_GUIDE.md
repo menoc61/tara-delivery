@@ -1,8 +1,8 @@
-# Migration Guide: Suberbase → Supabase, Google Maps → OpenStreetMap
+# Migration Guide: Firebase → Supabase, Google Maps → OpenStreetMap
 
 ## Overview
 
-This guide covers migrating from Suberbase to Supabase and from Google Maps to MapLibre GL JS with OpenStreetMap.
+This guide covers the completed migration from Firebase to Supabase and from Google Maps to MapLibre GL JS with OpenStreetMap.
 
 ---
 

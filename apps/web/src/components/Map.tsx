@@ -32,21 +32,26 @@ export interface MapProps {
 const DEFAULT_CENTER: [number, number] = [11.5023, 3.8480]; // Yaoundé, Cameroon
 const DEFAULT_ZOOM = 12;
 
-// OpenStreetMap raster style (free, no API key needed)
-const OSM_STYLE = {
+// Modern OpenStreetMap style using CartoDB Positron (clean and professional)
+const MODERN_STYLE = {
   version: 8,
   sources: {
-    'osm': {
+    'carto-positron': {
       type: 'raster',
-      tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+      tiles: [
+        'https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
+        'https://b.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
+        'https://c.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
+        'https://d.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png'
+      ],
       tileSize: 256,
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
     }
   },
   layers: [{
-    id: 'osm',
+    id: 'carto-positron',
     type: 'raster',
-    source: 'osm'
+    source: 'carto-positron'
   }]
 };
 
@@ -61,7 +66,7 @@ export function Map({
 }: MapProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
-  const markersRef = useRef<Map<string, maplibregl.Marker>>(new Map());
+  const markersRef = useRef<Record<string, maplibregl.Marker>>({});
 
   // Initialize map
   useEffect(() => {
@@ -69,9 +74,10 @@ export function Map({
 
     map.current = new maplibregl.Map({
       container: mapContainer.current,
-      style: styleUrl || OSM_STYLE as any,
+      style: styleUrl || MODERN_STYLE as any,
       center,
-      zoom
+      zoom,
+      antialias: true
     });
 
     // Add navigation controls
@@ -89,8 +95,8 @@ export function Map({
 
     return () => {
       // Cleanup markers
-      markersRef.current.forEach((marker) => marker.remove());
-      markersRef.current.clear();
+      Object.values(markersRef.current).forEach((marker) => marker.remove());
+      markersRef.current = {};
       map.current?.remove();
     };
   }, []);
@@ -109,34 +115,51 @@ export function Map({
     const newMarkerIds = new Set(markers.map(m => m.id));
 
     // Remove markers that no longer exist
-    currentMarkers.forEach((marker, id) => {
+    Object.keys(currentMarkers).forEach((id) => {
       if (!newMarkerIds.has(id)) {
-        marker.remove();
-        currentMarkers.delete(id);
+        currentMarkers[id].remove();
+        delete currentMarkers[id];
       }
     });
 
     // Add or update markers
     markers.forEach((markerData) => {
-      const existingMarker = currentMarkers.get(markerData.id);
+      const existingMarker = currentMarkers[markerData.id];
 
       if (existingMarker) {
         // Update position
         existingMarker.setLngLat([markerData.lng, markerData.lat]);
       } else {
-        // Create new marker
+        // Create new marker with a more professional look
         const el = document.createElement('div');
-        el.className = 'map-marker';
-        el.style.width = '30px';
-        el.style.height = '30px';
-        el.style.backgroundColor = markerData.color || '#ef4444';
-        el.style.borderRadius = '50%';
-        el.style.border = '3px solid white';
-        el.style.boxShadow = '0 2px 4px rgba(0,0,0,0.3)';
-        el.style.cursor = 'pointer';
+        el.className = 'map-marker-container';
+
+        const markerPin = document.createElement('div');
+        markerPin.style.width = '32px';
+        markerPin.style.height = '32px';
+        markerPin.style.backgroundColor = markerData.color || '#FF6B2C'; // Brand color
+        markerPin.style.borderRadius = '50% 50% 50% 0';
+        markerPin.style.transform = 'rotate(-45deg)';
+        markerPin.style.border = '2px solid white';
+        markerPin.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)';
+        markerPin.style.cursor = 'pointer';
+        markerPin.style.display = 'flex';
+        markerPin.style.alignItems = 'center';
+        markerPin.style.justifyContent = 'center';
+
+        // Add a small dot in the middle
+        const dot = document.createElement('div');
+        dot.style.width = '8px';
+        dot.style.height = '8px';
+        dot.style.backgroundColor = 'white';
+        dot.style.borderRadius = '50%';
+        markerPin.appendChild(dot);
+
+        el.appendChild(markerPin);
 
         const marker = new maplibregl.Marker(el)
-          .setLngLat([markerData.lng, markerData.lat]);
+          .setLngLat([markerData.lng, markerData.lat])
+          .setOffset([0, -16]);
 
         if (markerData.label) {
           marker.setPopup(
@@ -149,7 +172,7 @@ export function Map({
         }
 
         marker.addTo(map.current!);
-        currentMarkers.set(markerData.id, marker);
+        currentMarkers[markerData.id] = marker;
       }
     });
   }, [markers]);

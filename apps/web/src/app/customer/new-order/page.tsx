@@ -59,7 +59,7 @@ export default function NewOrderPage() {
   const StepDot = ({ n }: { n: number }) => (
     <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
       step > n ? "text-white" : step === n ? "text-white" : "text-on_sur_var"
-    }`} style={{ background: step >= n ? "linear-gradient(135deg,#00503a,#006a4e)" : "var(--sur-high)" }}>
+    }`} style={{ background: step >= n ? "linear-gradient(135deg, var(--brand-primary), var(--brand-secondary))" : "var(--sur-high)" }}>
       {step > n ? <Check className="w-4 h-4" /> : n}
     </div>
   );
@@ -145,7 +145,7 @@ export default function NewOrderPage() {
               {/* Delivery */}
               <div className="rounded-2xl p-5" style={{ background: "var(--sur-low)" }}>
                 <div className="flex items-center gap-2 mb-4">
-                  <MapPin className="w-4 h-4" style={{ color: "#00695c" }} />
+                  <MapPin className="w-4 h-4 text-emerald-500" />
                   <span className="text-sm font-bold text-on_surface">Adresse de livraison</span>
                 </div>
                 <div className="space-y-3">

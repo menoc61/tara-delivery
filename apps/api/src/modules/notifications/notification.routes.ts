@@ -1,8 +1,6 @@
 import { Router, Response } from "express";
 import { notificationService } from "./notification.service";
 import { authenticate, AuthRequest } from "../../middleware/auth.middleware";
-import { validate } from "../../middleware/validate.middleware";
-import { fcmTokenSchema } from "@tara/zod-schemas";
 import { sendSuccess } from "../../utils/response.utils";
 
 const router = Router();
@@ -30,9 +28,15 @@ router.patch("/mark-all-read", async (req: AuthRequest, res: Response) => {
   sendSuccess(res, null, "All notifications marked as read");
 });
 
-router.post("/fcm-token", validate(fcmTokenSchema), async (req: AuthRequest, res: Response) => {
-  await notificationService.updateFcmToken(req.user!.id, req.body.token);
-  sendSuccess(res, null, "FCM token updated");
+// Replaces FCM token with Web Push subscription
+router.post("/subscribe", async (req: AuthRequest, res: Response) => {
+  await notificationService.updatePushSubscription(req.user!.id, JSON.stringify(req.body));
+  sendSuccess(res, null, "Push subscription updated");
+});
+
+router.post("/unsubscribe", async (req: AuthRequest, res: Response) => {
+  await notificationService.unsubscribePush(req.user!.id, req.body.endpoint);
+  sendSuccess(res, null, "Push subscription removed");
 });
 
 export default router;

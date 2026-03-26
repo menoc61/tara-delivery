@@ -32,7 +32,7 @@ export const authService = {
     // Send welcome email (non-blocking)
     emailService.sendWelcomeEmail(user.email, user.name).catch(() => {});
 
-    const tokens = generateTokenPair(user);
+    const tokens = generateTokenPair(user as any);
     return { user: sanitizeUser(user), tokens };
   },
 
@@ -57,7 +57,7 @@ export const authService = {
       data: { lastLoginAt: new Date() },
     });
 
-    const tokens = generateTokenPair(user);
+    const tokens = generateTokenPair(user as any);
     return { user: sanitizeUser(user), tokens };
   },
 
@@ -100,7 +100,7 @@ export const authService = {
       data: { lastLoginAt: new Date() },
     });
 
-    const tokens = generateTokenPair(user);
+    const tokens = generateTokenPair(user as any);
     return { user: sanitizeUser(user), tokens };
   },
 
@@ -118,7 +118,7 @@ export const authService = {
     });
     if (!user) throw new UnauthorizedError("User not found");
 
-    return generateTokenPair(user);
+    return generateTokenPair(user as any);
   },
 
   // ── Forgot Password ───────────────────────────────────

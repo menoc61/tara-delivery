@@ -11,7 +11,7 @@
     "resolveJsonModule": true,
     "outDir": "./dist",
     "rootDir": "./src",
-    "declaration": true,
+    "declaration": false,
     "sourceMap": true,
     "paths": {
       "@tara/types": ["../../packages/types/src/index.ts"],

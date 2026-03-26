@@ -4,19 +4,22 @@
 
 /* ── Google Fonts loaded via next/font in layout ─────────── */
 :root {
-  --primary:          #00503a;
-  --primary-container:#006a4e;
-  --primary-fixed:    #9ef4d0;
-  --secondary:        #7c5800;
-  --secondary-cta:    #feb700;
-  --surface:          #f8faf7;
-  --sur-low:          #f2f4f2;
-  --sur-mid:          #eceeed;
-  --sur-high:         #e1e3e1;
-  --sur-highest:      #dcdede;
-  --on-surface:       #191c1b;
-  --on-sur-var:       #3f4945;
-  --outline-var:      #bec9c2;
+  --primary:          #FF6B2C; /* Updated to brand orange from DESIGN.md */
+  --primary-container:#EA580C;
+  --primary-fixed:    #FFF7ED;
+  --secondary:        #FF8C00;
+  --secondary-cta:    #FED7AA;
+  --surface:          #FFFFFF;
+  --sur-low:          #F9FAFB;
+  --sur-mid:          #F3F4F6;
+  --sur-high:         #E5E7EB;
+  --sur-highest:      #D1D5DB;
+  --on-surface:       #111827;
+  --on-sur-var:       #6B7280;
+  --outline-var:      #E5E7EB;
+  --brand-primary:    #FF6B2C;
+  --brand-secondary:  #FF8C00;
+  --brand-dark:       #C2410C;
 }
 
 @layer base {
@@ -40,15 +43,15 @@
   /* ── Buttons ──────────────────────────────────────── */
   .btn-primary {
     @apply inline-flex items-center justify-center gap-2
-           px-6 py-3 rounded-md font-bold text-sm uppercase tracking-wide
-           text-primary-on transition-all duration-200
+           px-6 py-3 rounded-xl font-bold text-sm uppercase tracking-wide
+           text-white transition-all duration-200
            disabled:opacity-50 disabled:cursor-not-allowed;
-    background: var(--bg-primary-gradient, linear-gradient(135deg,#00503a,#006a4e));
-    box-shadow: 0 2px 8px rgba(0,80,58,0.20);
+    background: linear-gradient(135deg, var(--brand-primary), var(--brand-secondary));
+    box-shadow: 0 4px 12px rgba(255, 107, 44, 0.2);
   }
   .btn-primary:hover:not(:disabled) {
-    transform: translateY(-1px);
-    box-shadow: 0 6px 20px rgba(0,80,58,0.25);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(255, 107, 44, 0.3);
   }
   .btn-primary:active:not(:disabled) { transform: translateY(0); }
 
@@ -75,12 +78,14 @@
 
   /* ── Surface cards (no borders — tonal shift only) ── */
   .card {
-    background: white;
-    border-radius: 1rem;
-    box-shadow: 0 2px 8px rgba(0,80,58,0.06), 0 1px 3px rgba(0,80,58,0.03);
-    transition: box-shadow 0.2s ease;
+    @apply bg-white rounded-2xl transition-all duration-300;
+    box-shadow: 0 1px 3px 0 rgba(0,0,0,0.08), 0 1px 2px -1px rgba(0,0,0,0.04);
+    border: 1px solid #F3F4F6;
   }
-  .card:hover { box-shadow: 0 8px 24px rgba(0,80,58,0.08); }
+  .card:hover {
+    box-shadow: 0 4px 12px 0 rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
+    transform: translateY(-2px);
+  }
 
   .card-tonal {
     background: var(--sur-low);

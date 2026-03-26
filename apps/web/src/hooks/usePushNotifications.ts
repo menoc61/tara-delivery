@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { notificationsApi } from '@/lib/api-client';
 
-export interface NotificationPermission {
+export interface NotificationPermissionState {
   permission: NotificationPermission | null;
   supported: boolean;
   subscribed: boolean;
@@ -14,7 +15,7 @@ export interface NotificationPermission {
  * Replaces Firebase Cloud Messaging
  */
 export function usePushNotifications(vapidPublicKey?: string) {
-  const [state, setState] = useState<NotificationPermission>({
+  const [state, setState] = useState<NotificationPermissionState>({
     permission: null,
     supported: false,
     subscribed: false,
@@ -76,7 +77,7 @@ export function usePushNotifications(vapidPublicKey?: string) {
       // Subscribe to push notifications
       const subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(vapidPublicKey)
+        applicationServerKey: urlBase64ToUint8Array(vapidPublicKey) as any
       });
 
       setState(prev => ({
@@ -147,15 +148,7 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
  */
 async function sendSubscriptionToServer(subscription: PushSubscription): Promise<void> {
   try {
-    const response = await fetch('/api/notifications/subscribe', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(subscription)
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to send subscription to server');
-    }
+    await notificationsApi.subscribe(subscription);
   } catch (error) {
     console.error('Failed to send subscription to server:', error);
   }
@@ -166,11 +159,7 @@ async function sendSubscriptionToServer(subscription: PushSubscription): Promise
  */
 async function removeSubscriptionFromServer(subscription: PushSubscription): Promise<void> {
   try {
-    await fetch('/api/notifications/unsubscribe', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ endpoint: subscription.endpoint })
-    });
+    await notificationsApi.unsubscribe(subscription.endpoint);
   } catch (error) {
     console.error('Failed to remove subscription from server:', error);
   }

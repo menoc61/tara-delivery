@@ -24,11 +24,8 @@ import notificationRoutes from "./modules/notifications/notification.routes";
 import adminRoutes from "./modules/admin/admin.routes";
 import webhookRoutes from "./modules/payments/webhook.routes";
 
-const app = express();
+const app: express.Application = express();
 const PORT = process.env.PORT || 4000;
-
-// ── Initialize External Services ─────────────────────────
-initFirebase();
 
 // ── Security Middleware ───────────────────────────────────
 app.use(helmet({
