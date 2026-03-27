@@ -6,17 +6,26 @@ import { buildPaginationMeta } from "../../utils/response.utils";
 import { UserRole, RiderStatus, VehicleType } from "@tara/types";
 
 export const riderService = {
-  async register(userId: string, input: {
-    vehicleType: string; vehiclePlate: string; licenseNumber: string;
-  }) {
+  async register(
+    userId: string,
+    input: {
+      vehicleType: string;
+      vehiclePlate: string;
+      licenseNumber: string;
+    },
+  ) {
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new NotFoundError("User");
 
     const existing = await prisma.rider.findUnique({ where: { userId } });
-    if (existing) throw new AppError("You are already registered as a rider", 409);
+    if (existing)
+      throw new AppError("You are already registered as a rider", 409);
 
     const rider = await prisma.$transaction(async (tx) => {
-      await tx.user.update({ where: { id: userId }, data: { role: UserRole.RIDER } });
+      await tx.user.update({
+        where: { id: userId },
+        data: { role: UserRole.RIDER },
+      });
       return tx.rider.create({
         data: {
           userId,
@@ -34,7 +43,9 @@ export const riderService = {
     const rider = await prisma.rider.findUnique({
       where: { userId },
       include: {
-        user: { select: { name: true, email: true, phone: true, avatar: true } },
+        user: {
+          select: { name: true, email: true, phone: true, avatar: true },
+        },
         _count: { select: { orders: true } },
       },
     });
@@ -51,13 +62,48 @@ export const riderService = {
     });
   },
 
-  async updateLocation(userId: string, location: { lat: number; lng: number; heading?: number; speed?: number }) {
+  async updateProfile(
+    userId: string,
+    input: { name?: string; phone?: string; vehiclePlate?: string },
+  ) {
+    const rider = await prisma.rider.findUnique({ where: { userId } });
+    if (!rider) throw new NotFoundError("Rider");
+
+    const [userUpdate, riderUpdate] = await Promise.all([
+      input.name || input.phone
+        ? prisma.user.update({
+            where: { id: userId },
+            data: {
+              ...(input.name && { name: input.name }),
+              ...(input.phone && { phone: input.phone }),
+            },
+          })
+        : null,
+      input.vehiclePlate
+        ? prisma.rider.update({
+            where: { id: rider.id },
+            data: { vehiclePlate: input.vehiclePlate },
+          })
+        : null,
+    ]);
+
+    return this.getMyProfile(userId);
+  },
+
+  async updateLocation(
+    userId: string,
+    location: { lat: number; lng: number; heading?: number; speed?: number },
+  ) {
     const rider = await prisma.rider.findUnique({ where: { userId } });
     if (!rider) throw new NotFoundError("Rider");
 
     await prisma.rider.update({
       where: { id: rider.id },
-      data: { currentLat: location.lat, currentLng: location.lng, lastLocationAt: new Date() },
+      data: {
+        currentLat: location.lat,
+        currentLng: location.lng,
+        lastLocationAt: new Date(),
+      },
     });
 
     // Broadcast to Supabase Realtime for live tracking
@@ -66,7 +112,13 @@ export const riderService = {
     return { updated: true };
   },
 
-  async getAllRiders(filters: { page: number; limit: number; status?: string; vehicleType?: string; isVerified?: boolean }) {
+  async getAllRiders(filters: {
+    page: number;
+    limit: number;
+    status?: string;
+    vehicleType?: string;
+    isVerified?: boolean;
+  }) {
     const { page, limit, status, vehicleType, isVerified } = filters;
     const skip = (page - 1) * limit;
 
@@ -77,9 +129,15 @@ export const riderService = {
 
     const [riders, total] = await Promise.all([
       prisma.rider.findMany({
-        where, skip, take: limit,
+        where,
+        skip,
+        take: limit,
         orderBy: { createdAt: "desc" },
-        include: { user: { select: { name: true, email: true, phone: true, avatar: true } } },
+        include: {
+          user: {
+            select: { name: true, email: true, phone: true, avatar: true },
+          },
+        },
       }),
       prisma.rider.count({ where }),
     ]);
@@ -89,7 +147,11 @@ export const riderService = {
   async getRiderById(id: string) {
     const rider = await prisma.rider.findUnique({
       where: { id },
-      include: { user: { select: { name: true, email: true, phone: true, avatar: true } } },
+      include: {
+        user: {
+          select: { name: true, email: true, phone: true, avatar: true },
+        },
+      },
     });
     if (!rider) throw new NotFoundError("Rider");
     return rider;
@@ -101,17 +163,31 @@ export const riderService = {
     return prisma.rider.update({ where: { id }, data: { isVerified } });
   },
 
-  async submitRating(data: { orderId: string; userId: string; score: number; comment?: string }) {
+  async submitRating(data: {
+    orderId: string;
+    userId: string;
+    score: number;
+    comment?: string;
+  }) {
     const order = await prisma.order.findUnique({
       where: { id: data.orderId, userId: data.userId, status: "DELIVERED" },
     });
-    if (!order || !order.riderId) throw new AppError("Order not found or not eligible for rating", 400);
+    if (!order || !order.riderId)
+      throw new AppError("Order not found or not eligible for rating", 400);
 
-    const existing = await prisma.rating.findUnique({ where: { orderId: data.orderId } });
+    const existing = await prisma.rating.findUnique({
+      where: { orderId: data.orderId },
+    });
     if (existing) throw new AppError("Already rated this order", 409);
 
     const rating = await prisma.rating.create({
-      data: { orderId: data.orderId, userId: data.userId, riderId: order.riderId, score: data.score, comment: data.comment },
+      data: {
+        orderId: data.orderId,
+        userId: data.userId,
+        riderId: order.riderId,
+        score: data.score,
+        comment: data.comment,
+      },
     });
 
     // Recalculate rider average

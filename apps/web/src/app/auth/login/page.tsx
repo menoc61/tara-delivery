@@ -4,13 +4,45 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Eye, EyeOff, Loader2, Package } from "lucide-react";
+import {
+  Eye,
+  EyeOff,
+  Loader2,
+  Package,
+  User,
+  Bike,
+  Shield,
+} from "lucide-react";
 import toast from "react-hot-toast";
 import { gsap } from "gsap";
 import { loginSchema, LoginInput } from "@tara/zod-schemas";
 import { useAuthStore } from "@/store/auth.store";
 import { authApi } from "@/lib/api-client";
 import { UserRole } from "@tara/types";
+
+const TEST_ACCOUNTS = [
+  {
+    role: "Client",
+    email: "customer1@test.cm",
+    password: "Customer@123",
+    icon: User,
+    color: "bg-blue-500",
+  },
+  {
+    role: "Livreur",
+    email: "rider1@test.cm",
+    password: "Rider@123",
+    icon: Bike,
+    color: "bg-green-500",
+  },
+  {
+    role: "Admin",
+    email: "admin@tara-delivery.cm",
+    password: "Admin@123456",
+    icon: Shield,
+    color: "bg-purple-500",
+  },
+];
 
 export default function LoginPage() {
   const router = useRouter();
@@ -47,10 +79,26 @@ export default function LoginPage() {
       else if (user.role === UserRole.RIDER) router.push("/rider");
       else router.push("/customer");
     } catch (err: unknown) {
-      const msg =
-        (err as { response?: { data?: { message?: string } } })?.response?.data
-          ?.message || "Identifiants invalides";
+      const error = err as { response?: { data?: { message?: string } } };
+      const msg = error.response?.data?.message || "Identifiants invalides";
       toast.error(msg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const quickLogin = async (email: string, password: string) => {
+    setLoading(true);
+    try {
+      const res = await authApi.login({ email, password });
+      const { user, tokens } = res.data.data;
+      setAuth(user, tokens);
+      toast.success(`Bienvenue, ${user.name}!`);
+      if (user.role === UserRole.ADMIN) router.push("/admin");
+      else if (user.role === UserRole.RIDER) router.push("/rider");
+      else router.push("/customer");
+    } catch (err: unknown) {
+      toast.error("Erreur de connexion");
     } finally {
       setLoading(false);
     }
@@ -61,7 +109,7 @@ export default function LoginPage() {
       className="min-h-screen flex items-center justify-center px-4 py-12"
       style={{
         background:
-          "radial-gradient(ellipse at 30% 40%,rgba(0,80,58,.06) 0%,transparent 60%),var(--sur-low)",
+          "radial-gradient(ellipse at 30% 40%,rgba(0,80,58,.06) 0%,transparent 60%),#f2f4f2",
       }}
     >
       <div
@@ -92,9 +140,9 @@ export default function LoginPage() {
 
           <button
             onClick={() => {
-              window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/auth/google`;
+              window.location.href = `/api/auth/google`;
             }}
-            className="w-full flex items-center justify-center gap-3 py-3 rounded-md text-sm font-semibold mb-5 transition-all bg-sur-high text-gray-900 hover:bg-gray-200"
+            className="w-full flex items-center justify-center gap-3 py-3 rounded-md text-sm font-semibold mb-5 transition-all bg-surface-container-high text-gray-900 hover:bg-gray-200"
           >
             <svg className="w-5 h-5" viewBox="0 0 24 24">
               <path
@@ -203,6 +251,37 @@ export default function LoginPage() {
               Créer un compte
             </Link>
           </p>
+        </div>
+
+        {/* Test Accounts Table */}
+        <div className="mt-6">
+          <p className="text-xs text-center text-gray-400 mb-3 uppercase tracking-wider">
+            Comptes de test
+          </p>
+          <div className="grid grid-cols-3 gap-2">
+            {TEST_ACCOUNTS.map((account) => (
+              <button
+                key={account.role}
+                onClick={() => quickLogin(account.email, account.password)}
+                disabled={loading}
+                className="card p-3 flex flex-col items-center gap-2 hover:shadow-lg transition-shadow disabled:opacity-50"
+              >
+                <div
+                  className={`w-10 h-10 rounded-full ${account.color} flex items-center justify-center`}
+                >
+                  <account.icon className="w-5 h-5 text-white" />
+                </div>
+                <div className="text-center">
+                  <p className="text-xs font-semibold text-gray-900">
+                    {account.role}
+                  </p>
+                  <p className="text-[10px] text-gray-500 truncate max-w-full">
+                    {account.email}
+                  </p>
+                </div>
+              </button>
+            ))}
+          </div>
         </div>
       </div>
     </div>

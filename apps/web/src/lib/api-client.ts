@@ -124,6 +124,7 @@ export const paymentsApi = {
 export const ridersApi = {
   register: (data: unknown) => apiClient.post("/riders/register", data),
   getMe: () => apiClient.get("/riders/me"),
+  updateMe: (data: unknown) => apiClient.patch("/riders/me", data),
   updateStatus: (status: unknown) =>
     apiClient.patch("/riders/me/status", status),
   updateLocation: (location: unknown) =>
@@ -161,7 +162,44 @@ export const adminApi = {
   getTopRiders: (limit?: number) =>
     apiClient.get("/admin/analytics/top-riders", { params: { limit } }),
   getRecentOrders: () => apiClient.get("/admin/orders/recent"),
+  getOrders: (params?: unknown) => apiClient.get("/admin/orders", { params }),
   getUsers: (params?: unknown) => apiClient.get("/admin/users", { params }),
+  getRiders: (params?: unknown) => apiClient.get("/admin/riders", { params }),
   updateUser: (id: string, data: unknown) =>
     apiClient.patch(`/admin/users/${id}`, data),
+  updateRider: (id: string, data: unknown) =>
+    apiClient.patch(`/admin/riders/${id}`, data),
+  // Zones
+  getZones: () => apiClient.get("/admin/zones"),
+  // KYC
+  getPendingVerifications: () =>
+    apiClient.get("/admin/riders/pending-verification"),
+  verifyRider: (id: string, isVerified: boolean) =>
+    apiClient.patch(`/admin/riders/${id}/verify`, { isVerified }),
+  // Payouts
+  getPayouts: (status?: string) =>
+    apiClient.get("/admin/payouts", { params: { status } }),
+  // Promos
+  getPromos: () => apiClient.get("/admin/promos"),
+  createPromo: (data: unknown) => apiClient.post("/admin/promos", data),
+  // Notifications
+  getNotifications: (params?: unknown) =>
+    apiClient.get("/admin/notifications", { params }),
+  sendNotification: (data: unknown) =>
+    apiClient.post("/admin/notifications", data),
+  // Audit logs
+  getAuditLogs: (params?: unknown) =>
+    apiClient.get("/admin/audit-logs", { params }),
+  // Support
+  getSupportTickets: (status?: string) =>
+    apiClient.get("/admin/support-tickets", { params: { status } }),
+  updateSupportTicket: (id: string, data: unknown) =>
+    apiClient.patch(`/admin/support-tickets/${id}`, data),
+  // Fleet
+  getFleetStats: () => apiClient.get("/admin/fleet-stats"),
+  // Live map
+  getRiderLocations: () => apiClient.get("/admin/riders/locations"),
+  // Settings
+  getSettings: () => apiClient.get("/admin/settings"),
+  updateSettings: (data: unknown) => apiClient.patch("/admin/settings", data),
 };
