@@ -1,5 +1,6 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+
+import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
@@ -14,11 +15,13 @@ import {
   Shield,
 } from "lucide-react";
 import toast from "react-hot-toast";
-import { gsap } from "gsap";
 import { loginSchema, LoginInput } from "@tara/zod-schemas";
 import { useAuthStore } from "@/store/auth.store";
 import { authApi } from "@/lib/api-client";
 import { UserRole } from "@tara/types";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 const TEST_ACCOUNTS = [
   {
@@ -26,21 +29,18 @@ const TEST_ACCOUNTS = [
     email: "customer1@test.cm",
     password: "Customer@123",
     icon: User,
-    color: "bg-blue-500",
   },
   {
     role: "Livreur",
     email: "rider1@test.cm",
     password: "Rider@123",
     icon: Bike,
-    color: "bg-green-500",
   },
   {
     role: "Admin",
     email: "admin@tara-delivery.cm",
     password: "Admin@123456",
     icon: Shield,
-    color: "bg-purple-500",
   },
 ];
 
@@ -49,7 +49,6 @@ export default function LoginPage() {
   const { setAuth } = useAuthStore();
   const [showPwd, setShowPwd] = useState(false);
   const [loading, setLoading] = useState(false);
-  const cardRef = useRef<HTMLDivElement>(null);
 
   const {
     register,
@@ -58,15 +57,6 @@ export default function LoginPage() {
   } = useForm<LoginInput>({
     resolver: zodResolver(loginSchema),
   });
-
-  useEffect(() => {
-    gsap.from(cardRef.current, {
-      opacity: 0,
-      y: 32,
-      duration: 0.7,
-      ease: "power3.out",
-    });
-  }, []);
 
   const onSubmit = async (data: LoginInput) => {
     setLoading(true);
@@ -80,8 +70,7 @@ export default function LoginPage() {
       else router.push("/customer");
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
-      const msg = error.response?.data?.message || "Identifiants invalides";
-      toast.error(msg);
+      toast.error(error.response?.data?.message || "Identifiants invalides");
     } finally {
       setLoading(false);
     }
@@ -97,7 +86,7 @@ export default function LoginPage() {
       if (user.role === UserRole.ADMIN) router.push("/admin");
       else if (user.role === UserRole.RIDER) router.push("/rider");
       else router.push("/customer");
-    } catch (err: unknown) {
+    } catch {
       toast.error("Erreur de connexion");
     } finally {
       setLoading(false);
@@ -105,46 +94,70 @@ export default function LoginPage() {
   };
 
   return (
-    <div
-      className="min-h-screen flex items-center justify-center px-4 py-12"
-      style={{
-        background:
-          "radial-gradient(ellipse at 30% 40%,rgba(0,80,58,.06) 0%,transparent 60%),#f2f4f2",
-      }}
-    >
-      <div
-        className="absolute top-0 right-0 w-96 h-96 rounded-full -z-10 opacity-30"
-        style={{
-          background: "radial-gradient(#9ef4d0,transparent)",
-          filter: "blur(80px)",
-        }}
-      />
+    <div className="min-h-screen flex">
+      {/* Left Column - Cover Image */}
+      <div className="hidden lg:flex lg:w-1/2 relative bg-primary">
+        <div className="absolute inset-0 bg-gradient-to-br from-primary via-primary to-[#003d2e]" />
+        <div className="absolute inset-0 opacity-20">
+          <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-white/10 rounded-full blur-3xl" />
+          <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-secondary/20 rounded-full blur-3xl" />
+        </div>
 
-      <div ref={cardRef} className="w-full max-w-sm">
-        <Link href="/" className="flex items-center justify-center gap-2 mb-8">
-          <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-gradient-to-br from-primary to-primary-container">
-            <Package className="w-5 h-5 text-white" />
+        <div className="relative z-10 flex flex-col justify-center items-center w-full p-12">
+          <div className="w-20 h-20 rounded-2xl bg-white/10 backdrop-blur flex items-center justify-center mb-8">
+            <Package className="w-10 h-10 text-white" />
           </div>
-          <span className="font-display font-extrabold text-xl text-gray-900">
-            TARA <span className="text-primary">DELIVERY</span>
-          </span>
-        </Link>
-
-        <div className="card p-8">
-          <h1 className="font-display text-2xl font-extrabold mb-1 text-gray-900">
-            Connexion
+          <h1 className="text-4xl font-bold text-white mb-4 text-center font-display">
+            TARA DELIVERY
           </h1>
-          <p className="text-sm mb-6 text-gray-500">
-            Accédez à votre espace livraison
+          <p className="text-white/80 text-lg text-center max-w-md">
+            Votre solution de livraison rapide et fiable à Yaoundé. Payez en
+            toute sécurité avec MTN MoMo ou Orange Money.
           </p>
 
-          <button
+          <div className="mt-12 flex gap-8">
+            <div className="text-center">
+              <p className="text-3xl font-bold text-white">30min</p>
+              <p className="text-white/60 text-sm">Livraison</p>
+            </div>
+            <div className="text-center">
+              <p className="text-3xl font-bold text-white">500+</p>
+              <p className="text-white/60 text-sm">Livreurs</p>
+            </div>
+            <div className="text-center">
+              <p className="text-3xl font-bold text-white">10k+</p>
+              <p className="text-white/60 text-sm">Clients</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Right Column - Login Form */}
+      <div className="w-full lg:w-1/2 flex items-center justify-center p-8 bg-background">
+        <div className="w-full max-w-[400px]">
+          <div className="lg:hidden flex items-center justify-center gap-2 mb-8">
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-primary">
+              <Package className="w-5 h-5 text-white" />
+            </div>
+            <span className="font-display font-extrabold text-xl text-primary">
+              TARA DELIVERY
+            </span>
+          </div>
+
+          <h2 className="text-2xl font-bold mb-2">Connexion</h2>
+          <p className="text-muted-foreground mb-8">
+            Entrez vos identifiants pour accéder à votre compte
+          </p>
+
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full mb-6"
             onClick={() => {
-              window.location.href = `/api/auth/google`;
+              window.location.href = "/api/auth/google";
             }}
-            className="w-full flex items-center justify-center gap-3 py-3 rounded-md text-sm font-semibold mb-5 transition-all bg-surface-container-high text-gray-900 hover:bg-gray-200"
           >
-            <svg className="w-5 h-5" viewBox="0 0 24 24">
+            <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
               <path
                 fill="#4285F4"
                 d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -162,125 +175,109 @@ export default function LoginPage() {
                 d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
               />
             </svg>
-            Continuer avec Google
-          </button>
+            Google
+          </Button>
 
-          <div className="flex items-center gap-3 mb-5">
-            <div className="flex-1 h-px bg-gray-200" />
-            <span className="text-xs uppercase tracking-wider text-gray-400">
-              ou
-            </span>
-            <div className="flex-1 h-px bg-gray-200" />
+          <div className="relative mb-6">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-background px-2 text-muted-foreground">
+                Ou
+              </span>
+            </div>
           </div>
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            <div>
-              <label className="label">Email</label>
-              <input
-                {...register("email")}
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
                 type="email"
                 placeholder="vous@exemple.com"
-                className={`input ${errors.email ? "input-error" : ""}`}
-                autoComplete="email"
+                {...register("email")}
+                className={errors.email ? "border-red-500" : ""}
               />
               {errors.email && (
-                <p className="text-xs text-red-600 mt-1">
-                  {errors.email.message}
-                </p>
+                <p className="text-xs text-red-500">{errors.email.message}</p>
               )}
             </div>
 
-            <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="label mb-0">Mot de passe</label>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="password">Mot de passe</Label>
                 <Link
                   href="/auth/forgot-password"
-                  className="text-xs font-medium hover:underline text-primary"
+                  className="text-xs text-primary hover:underline"
                 >
                   Oublié?
                 </Link>
               </div>
               <div className="relative">
-                <input
-                  {...register("password")}
+                <Input
+                  id="password"
                   type={showPwd ? "text" : "password"}
                   placeholder="••••••••"
-                  autoComplete="current-password"
-                  className={`input pr-10 ${errors.password ? "input-error" : ""}`}
+                  {...register("password")}
+                  className={errors.password ? "border-red-500 pr-10" : "pr-10"}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPwd(!showPwd)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 opacity-50 hover:opacity-80 transition-opacity"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                 >
                   {showPwd ? (
-                    <EyeOff className="w-4 h-4" />
+                    <EyeOff className="h-4 w-4" />
                   ) : (
-                    <Eye className="w-4 h-4" />
+                    <Eye className="h-4 w-4" />
                   )}
                 </button>
               </div>
               {errors.password && (
-                <p className="text-xs text-red-600 mt-1">
+                <p className="text-xs text-red-500">
                   {errors.password.message}
                 </p>
               )}
             </div>
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="btn-primary w-full py-3.5 mt-2"
-            >
+            <Button type="submit" className="w-full" disabled={loading}>
               {loading ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" /> Connexion...
-                </>
-              ) : (
-                "SE CONNECTER"
-              )}
-            </button>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : null}
+              {loading ? "Connexion..." : "Se connecter"}
+            </Button>
           </form>
 
-          <p className="text-center text-sm mt-6 text-gray-500">
+          <p className="text-center text-sm text-muted-foreground mt-6">
             Pas de compte?{" "}
             <Link
               href="/auth/register"
-              className="font-semibold hover:underline text-primary"
+              className="text-primary hover:underline font-medium"
             >
               Créer un compte
             </Link>
           </p>
-        </div>
 
-        {/* Test Accounts Table */}
-        <div className="mt-6">
-          <p className="text-xs text-center text-gray-400 mb-3 uppercase tracking-wider">
-            Comptes de test
-          </p>
-          <div className="grid grid-cols-3 gap-2">
-            {TEST_ACCOUNTS.map((account) => (
-              <button
-                key={account.role}
-                onClick={() => quickLogin(account.email, account.password)}
-                disabled={loading}
-                className="card p-3 flex flex-col items-center gap-2 hover:shadow-lg transition-shadow disabled:opacity-50"
-              >
-                <div
-                  className={`w-10 h-10 rounded-full ${account.color} flex items-center justify-center`}
+          <div className="mt-8 pt-6 border-t">
+            <p className="text-xs text-muted-foreground text-center uppercase tracking-wider mb-3">
+              Comptes de test
+            </p>
+            <div className="grid grid-cols-3 gap-2">
+              {TEST_ACCOUNTS.map((account) => (
+                <button
+                  key={account.role}
+                  onClick={() => quickLogin(account.email, account.password)}
+                  disabled={loading}
+                  className="flex flex-col items-center gap-1 p-3 rounded-lg border hover:bg-muted transition-colors disabled:opacity-50"
                 >
-                  <account.icon className="w-5 h-5 text-white" />
-                </div>
-                <div className="text-center">
-                  <p className="text-xs font-semibold text-gray-900">
-                    {account.role}
-                  </p>
-                  <p className="text-[10px] text-gray-500 truncate max-w-full">
-                    {account.email}
-                  </p>
-                </div>
-              </button>
-            ))}
+                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                    <account.icon className="w-5 h-5 text-primary" />
+                  </div>
+                  <span className="text-xs font-medium">{account.role}</span>
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       </div>

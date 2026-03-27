@@ -51,8 +51,12 @@ interface OrderDetails {
   totalAmount: number;
   notes?: string;
   createdAt: string;
-  pickupAddress: { street: string; neighborhood: string; city: string };
-  deliveryAddress: { street: string; neighborhood: string; city: string };
+  pickupStreet?: string;
+  pickupNeighborhood?: string;
+  pickupCity?: string;
+  deliveryStreet?: string;
+  deliveryNeighborhood?: string;
+  deliveryCity?: string;
   rider?: { name: string; phone: string; rating: number };
   items: { name: string; quantity: number }[];
 }
@@ -193,10 +197,11 @@ export default function OrderTrackingPage() {
                   Collecte
                 </p>
                 <p className="text-sm text-on-surface">
-                  {order.pickupAddress.street}
+                  {order.pickupStreet || "Adresse de collecte"}
                 </p>
                 <p className="text-xs text-on-sur-var">
-                  {order.pickupAddress.neighborhood}, {order.pickupAddress.city}
+                  {order.pickupNeighborhood || "Quartier"},{" "}
+                  {order.pickupCity || "Yaoundé"}
                 </p>
               </div>
             </div>
@@ -207,11 +212,11 @@ export default function OrderTrackingPage() {
                   Livraison
                 </p>
                 <p className="text-sm text-on-surface">
-                  {order.deliveryAddress.street}
+                  {order.deliveryStreet || "Adresse de livraison"}
                 </p>
                 <p className="text-xs text-on-sur-var">
-                  {order.deliveryAddress.neighborhood},{" "}
-                  {order.deliveryAddress.city}
+                  {order.deliveryNeighborhood || "Quartier"},{" "}
+                  {order.deliveryCity || "Yaoundé"}
                 </p>
               </div>
             </div>

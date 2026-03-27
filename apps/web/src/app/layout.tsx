@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Manrope, Inter } from "next/font/google";
 import { Toaster } from "react-hot-toast";
 import "./globals.css";
+import { PushNotificationsInit } from "@/components/PushNotificationsInit";
 
 const manrope = Manrope({
   subsets: ["latin"],
@@ -24,24 +25,38 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title:       { default: "TARA DELIVERY", template: "%s | TARA DELIVERY" },
-  description: "Livraison rapide et fiable à Yaoundé, Cameroun. Payez avec MTN MoMo ou Orange Money.",
-  keywords:    ["livraison", "Yaoundé", "Cameroun", "MTN MoMo", "Orange Money", "TARA"],
-  manifest:    "/manifest.json",
-  icons:       { icon: "/favicon.ico", apple: "/apple-touch-icon.png" },
+  title: { default: "TARA DELIVERY", template: "%s | TARA DELIVERY" },
+  description:
+    "Livraison rapide et fiable à Yaoundé, Cameroun. Payez avec MTN MoMo ou Orange Money.",
+  keywords: [
+    "livraison",
+    "Yaoundé",
+    "Cameroun",
+    "MTN MoMo",
+    "Orange Money",
+    "TARA",
+  ],
+  manifest: "/manifest.json",
+  icons: { icon: "/favicon.ico", apple: "/apple-touch-icon.png" },
   openGraph: {
-    type:        "website",
-    locale:      "fr_CM",
-    siteName:    "TARA DELIVERY",
-    title:       "TARA DELIVERY — Livraison Express à Yaoundé",
-    description: "Commandez en 30 secondes. Livré en 30 minutes. Paiement MoMo & Orange Money.",
+    type: "website",
+    locale: "fr_CM",
+    siteName: "TARA DELIVERY",
+    title: "TARA DELIVERY — Livraison Express à Yaoundé",
+    description:
+      "Commandez en 30 secondes. Livré en 30 minutes. Paiement MoMo & Orange Money.",
   },
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <html lang="fr" className={`${manrope.variable} ${inter.variable}`}>
       <body>
+        <PushNotificationsInit />
         {children}
         <Toaster
           position="top-center"

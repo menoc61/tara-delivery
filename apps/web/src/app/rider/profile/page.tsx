@@ -57,7 +57,7 @@ export default function RiderProfilePage() {
       setProfile(data as unknown as RiderProfile);
       setStatus((data.status as RiderStatus) || RiderStatus.AVAILABLE);
     } catch (err) {
-      toast.error("Erreur lors du chargement");
+      console.error("Profile load error:", err);
     } finally {
       setLoading(false);
     }

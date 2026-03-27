@@ -12,9 +12,22 @@ router.get("/me", async (req: AuthRequest, res: Response) => {
   const user = await prisma.user.findUnique({
     where: { id: req.user!.id },
     select: {
-      id: true, name: true, email: true, phone: true,
-      avatar: true, role: true, createdAt: true,
-      rider: { select: { id: true, status: true, vehicleType: true, rating: true, isVerified: true } },
+      id: true,
+      name: true,
+      email: true,
+      phone: true,
+      avatar: true,
+      role: true,
+      createdAt: true,
+      rider: {
+        select: {
+          id: true,
+          status: true,
+          vehicleType: true,
+          rating: true,
+          isVerified: true,
+        },
+      },
       savedAddresses: true,
       _count: { select: { orders: true, notifications: true } },
     },
@@ -22,14 +35,25 @@ router.get("/me", async (req: AuthRequest, res: Response) => {
   sendSuccess(res, user);
 });
 
-router.patch("/me", validate(updateProfileSchema), async (req: AuthRequest, res: Response) => {
-  const user = await prisma.user.update({
-    where: { id: req.user!.id },
-    data: req.body,
-    select: { id: true, name: true, email: true, phone: true, avatar: true, role: true },
-  });
-  sendSuccess(res, user, "Profile updated");
-});
+router.patch(
+  "/me",
+  validate(updateProfileSchema),
+  async (req: AuthRequest, res: Response) => {
+    const user = await prisma.user.update({
+      where: { id: req.user!.id },
+      data: req.body,
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        avatar: true,
+        role: true,
+      },
+    });
+    sendSuccess(res, user, "Profile updated");
+  },
+);
 
 router.get("/me/addresses", async (req: AuthRequest, res: Response) => {
   const addresses = await prisma.savedAddress.findMany({
@@ -57,6 +81,20 @@ router.delete("/me/addresses/:id", async (req: AuthRequest, res: Response) => {
     where: { id: req.params.id, userId: req.user!.id },
   });
   sendSuccess(res, null, "Address deleted");
+});
+
+router.patch("/me/addresses/:id", async (req: AuthRequest, res: Response) => {
+  if (req.body.isDefault) {
+    await prisma.savedAddress.updateMany({
+      where: { userId: req.user!.id },
+      data: { isDefault: false },
+    });
+  }
+  const address = await prisma.savedAddress.update({
+    where: { id: req.params.id, userId: req.user!.id },
+    data: req.body,
+  });
+  sendSuccess(res, address, "Address updated");
 });
 
 export default router;

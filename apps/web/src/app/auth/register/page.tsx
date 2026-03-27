@@ -57,7 +57,7 @@ export default function RegisterPage() {
       className="min-h-screen flex items-center justify-center px-4 py-12"
       style={{
         background:
-          "radial-gradient(ellipse at 30% 40%,rgba(0,80,58,.06) 0%,transparent 60%),var(--sur-low)",
+          "radial-gradient(ellipse at 30% 40%,rgba(0,80,58,.06) 0%,transparent 60%),#f2f4f2",
       }}
     >
       <div

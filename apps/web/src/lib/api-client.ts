@@ -122,15 +122,12 @@ export const paymentsApi = {
 };
 
 export const ridersApi = {
-  register: (data: unknown) => apiClient.post("/riders/register", data),
   getMe: () => apiClient.get("/riders/me"),
-  updateMe: (data: unknown) => apiClient.patch("/riders/me", data),
-  updateStatus: (status: unknown) =>
-    apiClient.patch("/riders/me/status", status),
-  updateLocation: (location: unknown) =>
-    apiClient.post("/riders/me/location", location),
-  getAll: (params?: unknown) => apiClient.get("/riders", { params }),
-  getById: (id: string) => apiClient.get(`/riders/${id}`),
+  updateStatus: (status: string) =>
+    apiClient.patch("/riders/me/status", { status }),
+  updateProfile: (data: unknown) => apiClient.patch("/riders/me", data),
+  updateLocation: (location: Record<string, unknown>) =>
+    apiClient.post("/riders/me/location", { location }),
   verify: (id: string, isVerified: boolean) =>
     apiClient.patch(`/riders/${id}/verify`, { isVerified }),
   rate: (data: unknown) => apiClient.post("/riders/rate", data),
@@ -141,6 +138,8 @@ export const usersApi = {
   updateProfile: (data: unknown) => apiClient.patch("/users/me", data),
   getAddresses: () => apiClient.get("/users/me/addresses"),
   addAddress: (data: unknown) => apiClient.post("/users/me/addresses", data),
+  updateAddress: (id: string, data: unknown) =>
+    apiClient.patch(`/users/me/addresses/${id}`, data),
   deleteAddress: (id: string) => apiClient.delete(`/users/me/addresses/${id}`),
 };
 
