@@ -4,6 +4,7 @@ import { Toaster } from "react-hot-toast";
 import "./globals.css";
 import "leaflet/dist/leaflet.css";
 import { PushNotificationsInit } from "@/components/PushNotificationsInit";
+import { ServiceWorkerRegistration } from "@/components/ServiceWorkerRegistration";
 
 const manrope = Manrope({
   subsets: ["latin"],
@@ -38,7 +39,18 @@ export const metadata: Metadata = {
     "TARA",
   ],
   manifest: "/manifest.json",
-  icons: { icon: "/favicon.ico", apple: "/apple-touch-icon.png" },
+  icons: {
+    icon: [
+      { url: "/favicon.svg", type: "image/svg+xml" },
+      { url: "/favicon.ico", sizes: "48x48" },
+    ],
+    apple: "/icons/apple-touch-icon.png",
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "TARA DELIVERY",
+  },
   openGraph: {
     type: "website",
     locale: "fr_CM",
@@ -57,6 +69,7 @@ export default function RootLayout({
   return (
     <html lang="fr" className={`${manrope.variable} ${inter.variable}`}>
       <body>
+        <ServiceWorkerRegistration />
         <PushNotificationsInit />
         {children}
         <Toaster

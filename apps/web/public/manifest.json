@@ -1,16 +1,109 @@
 {
   "name": "TARA DELIVERY",
   "short_name": "TARA",
-  "description": "Livraison rapide et fiable à Yaoundé, Cameroun",
+  "description": "Livraison rapide et fiable à Yaoundé, Cameroun. Service de livraison professionnel pour vos colis, repas et courses.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#faf9f7",
+  "background_color": "#f8faf7",
   "theme_color": "#00503a",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "lang": "fr",
+  "categories": ["delivery", "food", "shopping"],
   "icons": [
     {
       "src": "/favicon.ico",
       "sizes": "48x48",
       "type": "image/x-icon"
+    },
+    {
+      "src": "/icons/icon-72x72.png",
+      "sizes": "72x72",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/icons/icon-96x96.png",
+      "sizes": "96x96",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/icons/icon-128x128.png",
+      "sizes": "128x128",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/icons/icon-144x144.png",
+      "sizes": "144x144",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/icons/icon-152x152.png",
+      "sizes": "152x152",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/icons/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/icons/icon-384x384.png",
+      "sizes": "384x384",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/icons/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable any"
     }
-  ]
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshots/home.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Tableau de bord TARA DELIVERY"
+    },
+    {
+      "src": "/screenshots/mobile.png",
+      "sizes": "750x1334",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Application mobile TARA DELIVERY"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Nouvelle Livraison",
+      "short_name": "Nouveau",
+      "description": "Créer une nouvelle livraison",
+      "url": "/customer/new-order",
+      "icons": [{ "src": "/icons/shortcut-new.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "Mes Commandes",
+      "short_name": "Commandes",
+      "description": "Voir mes commandes en cours",
+      "url": "/customer/orders",
+      "icons": [{ "src": "/icons/shortcut-orders.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "Suivi en Direct",
+      "short_name": "Suivi",
+      "description": "Suivre ma livraison en temps réel",
+      "url": "/customer/orders/track",
+      "icons": [{ "src": "/icons/shortcut-track.png", "sizes": "96x96" }]
+    }
+  ],
+  "related_applications": [],
+  "prefer_related_applications": false
 }

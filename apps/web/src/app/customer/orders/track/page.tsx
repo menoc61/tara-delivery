@@ -387,7 +387,7 @@ export default function LiveTrackingPage() {
         <div className="bg-emerald-900/5 h-px"></div>
         <div className="flex flex-col md:flex-row justify-between items-center px-8 py-4 w-full gap-4 max-w-screen-2xl mx-auto">
           <p className="text-xs text-slate-500">
-            © 2024 TARA DELIVERY. Logistique de précision au cœur de Yaoundé.
+            © 2026 TARA DELIVERY. Logistique de précision au cœur de Yaoundé.
           </p>
           <div className="flex gap-6">
             <Link

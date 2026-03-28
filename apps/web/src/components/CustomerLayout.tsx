@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Package, Plus, Wallet, User } from "lucide-react";
+import { Package, Plus, Wallet, User, Bell } from "lucide-react";
 
 export function MobileNav() {
   const pathname = usePathname();
@@ -164,9 +164,9 @@ export function Header({ title }: { title?: string }) {
         <div className="flex items-center gap-4">
           <Link
             href="/customer/notifications"
-            className="p-2 hover:bg-slate-50 rounded-lg transition-all text-slate-600"
+            className="p-2 hover:bg-slate-50 rounded-lg transition-all text-[#00503a] font-bold border-b-2 border-[#00503a] pb-1"
           >
-            <span className="text-xl">🔔</span>
+            <Bell className="w-5 h-5" />
           </Link>
           <Link
             href="/customer/profile"
@@ -189,7 +189,7 @@ export function PageFooter() {
       <div className="bg-emerald-900/5 h-px"></div>
       <div className="flex flex-col md:flex-row justify-between items-center px-8 py-12 w-full gap-4 max-w-screen-2xl mx-auto">
         <p className="text-xs text-slate-500">
-          © 2024 TARA DELIVERY. Logistique de précision au cœur de Yaoundé.
+          © 2026 TARA DELIVERY. Logistique de précision au cœur de Yaoundé.
         </p>
         <div className="flex gap-8">
           <Link

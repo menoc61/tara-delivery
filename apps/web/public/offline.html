@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Hors ligne - TARA DELIVERY</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        background: #f8faf7;
+        color: #191c1b;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+      }
+
+      .container {
+        text-align: center;
+        max-width: 400px;
+      }
+
+      .icon {
+        width: 120px;
+        height: 120px;
+        margin: 0 auto 24px;
+        background: #00503a;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .icon svg {
+        width: 60px;
+        height: 60px;
+        fill: #9ef4d0;
+      }
+
+      h1 {
+        font-size: 28px;
+        font-weight: 800;
+        margin-bottom: 12px;
+        color: #00503a;
+      }
+
+      p {
+        font-size: 16px;
+        color: #3f4944;
+        margin-bottom: 32px;
+        line-height: 1.5;
+      }
+
+      .button {
+        display: inline-block;
+        background: #00503a;
+        color: white;
+        padding: 16px 32px;
+        border-radius: 12px;
+        font-weight: 700;
+        text-decoration: none;
+        transition: all 0.2s;
+      }
+
+      .button:hover {
+        background: #006a4e;
+        transform: translateY(-2px);
+      }
+
+      .info {
+        margin-top: 40px;
+        padding: 20px;
+        background: #f2f4f2;
+        border-radius: 12px;
+        font-size: 14px;
+        color: #6f7a73;
+      }
+
+      .info strong {
+        color: #191c1b;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="icon">
+        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path
+            d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"
+          />
+        </svg>
+      </div>
+
+      <h1>Vous êtes hors ligne</h1>
+      <p>
+        Pas de connexion internet détectée. Veuillez vérifier votre connexion et
+        réessayer.
+      </p>
+
+      <a href="/" class="button" onclick="window.location.reload()">
+        Réessayer
+      </a>
+
+      <div class="info">
+        <strong>TARA DELIVERY</strong><br />
+        Livraison rapide et fiable à Yaoundé, Cameroun
+      </div>
+    </div>
+
+    <script>
+      // Auto-reload when back online
+      window.addEventListener("online", () => {
+        window.location.reload();
+      });
+
+      // Check connection status
+      function updateOnlineStatus() {
+        if (navigator.onLine) {
+          window.location.reload();
+        }
+      }
+
+      setInterval(updateOnlineStatus, 5000);
+    </script>
+  </body>
+</html>
