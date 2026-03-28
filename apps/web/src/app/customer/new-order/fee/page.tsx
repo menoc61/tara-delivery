@@ -76,19 +76,22 @@ export default function NewOrderStep3() {
   const [fees, setFees] = useState<ReturnType<typeof calculateFees> | null>(
     null,
   );
-
-  const step1Data = JSON.parse(sessionStorage.getItem("orderItems") || "{}");
-  const step2Data = JSON.parse(
-    sessionStorage.getItem("orderAddresses") || "{}",
-  );
+  const [step1Data, setStep1Data] = useState<Record<string, unknown>>({});
+  const [step2Data, setStep2Data] = useState<Record<string, unknown>>({});
 
   useEffect(() => {
-    if (!step1Data.type) {
+    // Load data from sessionStorage
+    const data1 = JSON.parse(sessionStorage.getItem("orderItems") || "{}");
+    const data2 = JSON.parse(sessionStorage.getItem("orderAddresses") || "{}");
+    setStep1Data(data1);
+    setStep2Data(data2);
+
+    if (!data1.type) {
       router.push("/customer/new-order");
       return;
     }
-    setFees(calculateFees(step1Data, step2Data));
-  }, [step1Data, step2Data, router]);
+    setFees(calculateFees(data1, data2));
+  }, [router]);
 
   const handleContinue = () => {
     if (fees) {

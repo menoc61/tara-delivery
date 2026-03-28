@@ -34,7 +34,9 @@ import {
   Building2,
   Truck,
   ArrowRightCircle,
+  Download,
 } from "lucide-react";
+import { usePWAInstall } from "@/hooks/usePWAInstall";
 
 const onboardingSteps = [
   {
@@ -98,6 +100,7 @@ export default function HomePage() {
   const [currentStep, setCurrentStep] = useState(0);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [isOffline, setIsOffline] = useState(false);
+  const { isInstallable, isInstalled, installApp } = usePWAInstall();
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -560,10 +563,17 @@ export default function HomePage() {
               confiance à Tara Delivery.
             </p>
             <div className="flex flex-col sm:flex-row justify-center gap-6">
-              <button className="bg-secondary-container text-on-secondary-container px-10 py-5 rounded-2xl font-black text-lg shadow-2xl hover:translate-y-[-2px] transition-transform">
+              <Link
+                href="/auth/register"
+                className="bg-secondary-container text-on-secondary-container px-10 py-5 rounded-2xl font-black text-lg shadow-2xl hover:translate-y-[-2px] transition-transform text-center"
+              >
                 COMMENCER UN ENVOI
-              </button>
-              <button className="bg-white text-primary px-10 py-5 rounded-2xl font-bold text-lg">
+              </Link>
+              <button
+                onClick={installApp}
+                className="bg-white text-primary px-10 py-5 rounded-2xl font-bold text-lg flex items-center justify-center gap-2"
+              >
+                <Download className="w-5 h-5" />
                 Télécharger l'App
               </button>
             </div>

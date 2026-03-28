@@ -14,8 +14,10 @@ import {
   ChevronDown,
   X,
   MessageCircleCode,
+  Download,
 } from "lucide-react";
 import { useAuthStore } from "@/store/auth.store";
+import { usePWAInstall } from "@/hooks/usePWAInstall";
 import { authApi } from "@/lib/api-client";
 import toast from "react-hot-toast";
 
@@ -145,6 +147,7 @@ export function Header({ title }: { title?: string }) {
   const [showProfileModal, setShowProfileModal] = useState(false);
   const modalRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
+  const { isInstallable, isInstalled, installApp } = usePWAInstall();
 
   const handleLogout = async () => {
     try {
@@ -282,6 +285,16 @@ export function Header({ title }: { title?: string }) {
                     <MessageCircleCode className="w-5 h-5 text-[#00503a]" />
                     <span className="font-medium">Messages</span>
                   </Link>
+                  <button
+                    onClick={() => {
+                      setShowProfileModal(false);
+                      installApp();
+                    }}
+                    className="flex items-center gap-3 px-4 py-3 text-slate-700 hover:bg-slate-50 rounded-xl transition-colors w-full"
+                  >
+                    <Download className="w-5 h-5 text-[#00503a]" />
+                    <span className="font-medium">Installer l'App</span>
+                  </button>
                 </div>
 
                 {/* Logout Button */}

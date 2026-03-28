@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -40,9 +40,13 @@ const formatCFA = (v: number) =>
 export default function NewOrderStep2() {
   const { user } = useAuthStore();
   const router = useRouter();
+  const [step1Data, setStep1Data] = useState<Record<string, unknown>>({});
 
-  // Load step 1 data
-  const step1Data = JSON.parse(sessionStorage.getItem("orderItems") || "{}");
+  useEffect(() => {
+    // Load step 1 data from sessionStorage
+    const data = JSON.parse(sessionStorage.getItem("orderItems") || "{}");
+    setStep1Data(data);
+  }, []);
 
   const [pickupType, setPickupType] = useState<"home" | "office" | "other">(
     "home",

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
@@ -21,7 +21,7 @@ import { useAuthStore } from "@/store/auth.store";
 import { authApi } from "@/lib/api-client";
 import { UserRole } from "@tara/types";
 
-export default function RegisterPage() {
+function RegisterForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const roleParam = searchParams.get("role");
@@ -352,5 +352,19 @@ export default function RegisterPage() {
       <div className="fixed top-0 right-0 -z-10 w-96 h-96 bg-primary/5 rounded-full blur-3xl -mr-48 -mt-48" />
       <div className="fixed bottom-0 left-1/2 -z-10 w-64 h-64 bg-secondary-container/10 rounded-full blur-3xl -ml-32 -mb-32" />
     </div>
+  );
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center">
+          Chargement...
+        </div>
+      }
+    >
+      <RegisterForm />
+    </Suspense>
   );
 }

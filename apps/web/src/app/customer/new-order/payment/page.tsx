@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -22,12 +22,9 @@ const formatCFA = (v: number) =>
 export default function NewOrderStep4() {
   const { user } = useAuthStore();
   const router = useRouter();
-
-  const step1Data = JSON.parse(sessionStorage.getItem("orderItems") || "{}");
-  const step2Data = JSON.parse(
-    sessionStorage.getItem("orderAddresses") || "{}",
-  );
-  const step3Data = JSON.parse(sessionStorage.getItem("orderFees") || "{}");
+  const [step1Data, setStep1Data] = useState<Record<string, unknown>>({});
+  const [step2Data, setStep2Data] = useState<Record<string, unknown>>({});
+  const [step3Data, setStep3Data] = useState<Record<string, unknown>>({});
 
   const [paymentMethod, setPaymentMethod] = useState<"mtn" | "orange" | "cash">(
     "mtn",
@@ -35,10 +32,20 @@ export default function NewOrderStep4() {
   const [phoneNumber, setPhoneNumber] = useState("");
   const [loading, setLoading] = useState(false);
 
-  if (!step1Data.type) {
-    router.push("/customer/new-order");
-    return null;
-  }
+  useEffect(() => {
+    // Load data from sessionStorage
+    const data1 = JSON.parse(sessionStorage.getItem("orderItems") || "{}");
+    const data2 = JSON.parse(sessionStorage.getItem("orderAddresses") || "{}");
+    const data3 = JSON.parse(sessionStorage.getItem("orderFees") || "{}");
+
+    setStep1Data(data1);
+    setStep2Data(data2);
+    setStep3Data(data3);
+
+    if (!data1.type) {
+      router.push("/customer/new-order");
+    }
+  }, [router]);
 
   const total = step3Data?.total || 3219;
 
@@ -309,19 +316,19 @@ export default function NewOrderStep4() {
                       <div className="flex justify-between items-center text-[#3f4944]">
                         <span>Frais de livraison</span>
                         <span className="font-medium text-[#191c1b]">
-                          {formatCFA(step3Data?.baseFee || 1500)}
+                          {formatCFA(Number(step3Data?.baseFee) || 1500)}
                         </span>
                       </div>
                       <div className="flex justify-between items-center text-[#3f4944]">
                         <span>Assurance colis</span>
                         <span className="font-medium text-[#191c1b]">
-                          {formatCFA(step3Data?.insuranceFee || 250)}
+                          {formatCFA(Number(step3Data?.insuranceFee) || 250)}
                         </span>
                       </div>
                       <div className="flex justify-between items-center text-[#3f4944]">
                         <span>Frais de service</span>
                         <span className="font-medium text-[#191c1b]">
-                          {formatCFA(step3Data?.vat || 519)}
+                          {formatCFA(Number(step3Data?.vat) || 519)}
                         </span>
                       </div>
                       <div className="pt-4 border-t border-[#bec9c2]/20 flex justify-between items-center">
@@ -329,7 +336,7 @@ export default function NewOrderStep4() {
                           TOTAL
                         </span>
                         <span className="font-bold text-2xl text-[#00503a]">
-                          {formatCFA(total)}
+                          {formatCFA(Number(total) || 3219)}
                         </span>
                       </div>
                     </div>

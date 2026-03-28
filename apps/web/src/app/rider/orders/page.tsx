@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import {
@@ -30,7 +30,7 @@ const statusLabels: Record<string, { label: string; class: string }> = {
   FAILED: { label: "Échouée", class: "bg-red-100 text-red-800" },
 };
 
-export default function RiderOrdersPage() {
+function RiderOrdersContent() {
   const searchParams = useSearchParams();
   const tab = searchParams.get("tab") || "active";
   const [orders, setOrders] = useState<Record<string, unknown>[]>([]);
@@ -199,5 +199,19 @@ export default function RiderOrdersPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function RiderOrdersPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center">
+          Chargement...
+        </div>
+      }
+    >
+      <RiderOrdersContent />
+    </Suspense>
   );
 }
