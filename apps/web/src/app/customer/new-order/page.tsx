@@ -1,456 +1,253 @@
 "use client";
+
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useForm, useFieldArray } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
 import {
   Package,
-  MapPin,
-  CreditCard,
   Plus,
-  Trash2,
-  ChevronLeft,
-  Loader2,
-  ArrowRight,
-  Check,
+  Minus,
+  Heart,
+  Snowflake,
+  Bolt,
+  ChevronRight,
+  Bell,
+  Settings,
+  CreditCard,
+  Wallet,
+  User,
+  Bell as BellIcon,
 } from "lucide-react";
-import toast from "react-hot-toast";
-import { createOrderSchema, CreateOrderInput } from "@tara/zod-schemas";
-import { OrderType, PaymentMethod } from "@tara/types";
+import { useAuthStore } from "@/store/auth.store";
 import { ordersApi } from "@/lib/api-client";
-import Link from "next/link";
+import toast from "react-hot-toast";
+import {
+  MobileNav,
+  Sidebar,
+  Header,
+  PageFooter,
+} from "@/components/CustomerLayout";
 
 const ORDER_TYPES = [
-  {
-    v: OrderType.PARCEL,
-    label: "Colis",
-    emoji: "📦",
-    desc: "Documents, cadeaux...",
-  },
-  {
-    v: OrderType.FOOD,
-    label: "Nourriture",
-    emoji: "🍔",
-    desc: "Restaurants, traiteurs",
-  },
-  {
-    v: OrderType.COURIER,
-    label: "Coursier",
-    emoji: "⚡",
-    desc: "Urgent, express",
-  },
-  {
-    v: OrderType.GROCERY,
-    label: "Courses",
-    emoji: "🛒",
-    desc: "Marchés, supermarchés",
-  },
+  { v: "FOOD", label: "Repas", emoji: "🍔", desc: "Chaud ou froid" },
+  { v: "PARCEL", label: "Colis", emoji: "📦", desc: "Documents, Boîtes" },
+  { v: "PHARMACY", label: "Pharmacie", emoji: "💊", desc: "Urgences" },
+  { v: "OTHER", label: "Autre", emoji: "📋", desc: "Sur mesure" },
 ];
 
-const PAYMENT_METHODS = [
-  {
-    v: PaymentMethod.MTN_MOMO,
-    label: "MTN MoMo",
-    icon: "🟡",
-    hint: "Numéro 67X / 65X",
-  },
-  {
-    v: PaymentMethod.ORANGE_MONEY,
-    label: "Orange Money",
-    icon: "🟠",
-    hint: "Numéro 69X",
-  },
-  {
-    v: PaymentMethod.CASH_ON_DELIVERY,
-    label: "Cash à la livraison",
-    icon: "💵",
-    hint: "Payez au livreur",
-  },
-];
+const formatCFA = (v: number) =>
+  new Intl.NumberFormat("fr-CM").format(v) + " XAF";
 
-const NEIGHBORHOODS = [
-  "Bastos",
-  "Nlongkak",
-  "Omnisports",
-  "Mvog-Ada",
-  "Mfoundi",
-  "Biyem-Assi",
-  "Mbankolo",
-  "Nkolbisson",
-  "Ekounou",
-  "Melen",
-  "Djoungolo",
-  "Emana",
-  "Tsinga",
-  "Elig-Essono",
-  "Mvog-Mbi",
-  "Briqueterie",
-];
-
-export default function NewOrderPage() {
+export default function NewOrderStep1() {
+  const { user } = useAuthStore();
   const router = useRouter();
-  const [step, setStep] = useState<1 | 2 | 3>(1);
-  const [submitting, setSubmitting] = useState(false);
 
-  const form = useForm<CreateOrderInput>({
-    resolver: zodResolver(createOrderSchema),
-    defaultValues: {
-      type: OrderType.PARCEL,
-      paymentMethod: PaymentMethod.MTN_MOMO,
-      pickupAddress: { city: "Yaoundé", neighborhood: "", street: "" },
-      deliveryAddress: { city: "Yaoundé", neighborhood: "", street: "" },
-      items: [{ name: "", quantity: 1 }],
-    },
-  });
+  const [orderType, setOrderType] = useState("PARCEL");
+  const [description, setDescription] = useState("");
+  const [weight, setWeight] = useState(1.5);
+  const [isFragile, setIsFragile] = useState(false);
+  const [isRefrigerated, setIsRefrigerated] = useState(true);
+  const [isUrgent, setIsUrgent] = useState(false);
 
-  const { fields, append, remove } = useFieldArray({
-    control: form.control,
-    name: "items",
-  });
-  const type = form.watch("type");
-  const pm = form.watch("paymentMethod");
-
-  const onSubmit = async (data: CreateOrderInput) => {
-    setSubmitting(true);
-    try {
-      const res = await ordersApi.create(data);
-      toast.success("Commande créée!");
-      router.push(`/customer/orders/${res.data.data.id}`);
-    } catch (err: unknown) {
-      toast.error(
-        (err as { response?: { data?: { message?: string } } })?.response?.data
-          ?.message || "Erreur création",
-      );
-    } finally {
-      setSubmitting(false);
-    }
+  const handleContinue = () => {
+    const orderData = {
+      type: orderType,
+      description,
+      weight,
+      isFragile,
+      isRefrigerated,
+      isUrgent,
+    };
+    sessionStorage.setItem("orderItems", JSON.stringify(orderData));
+    router.push("/customer/new-order/addresses");
   };
 
-  const StepDot = ({ n }: { n: number }) => (
-    <div
-      className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
-        step >= n ? "bg-brand-primary text-white" : "bg-gray-200 text-gray-500"
-      }`}
-    >
-      {step > n ? <Check className="w-4 h-4" /> : n}
-    </div>
-  );
-
   return (
-    <div className="min-h-screen bg-surface-secondary">
-      <header className="glass sticky top-0 z-40 px-4 py-4 border-b border-gray-100">
-        <div className="max-w-lg mx-auto flex items-center gap-3">
-          <Link
-            href="/customer"
-            className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
-          >
-            <ChevronLeft className="w-5 h-5 text-gray-600" />
-          </Link>
-          <div className="flex-1">
-            <h1 className="font-display font-bold text-gray-900 text-base">
-              Nouvelle livraison
-            </h1>
-          </div>
-        </div>
-        <div className="max-w-lg mx-auto mt-3 flex items-center gap-0">
-          {[1, 2, 3].map((n) => (
-            <div key={n} className="flex items-center gap-0 flex-1">
-              <StepDot n={n} />
-              {n < 3 && (
-                <div
-                  className={`flex-1 h-0.5 mx-1 transition-all ${step > n ? "bg-brand-primary" : "bg-gray-200"}`}
-                />
-              )}
-            </div>
-          ))}
-        </div>
-      </header>
+    <div className="min-h-screen bg-[#f8faf7] text-[#191c1b]">
+      <Header />
 
-      <div className="max-w-lg mx-auto px-4 py-6">
-        <form onSubmit={form.handleSubmit(onSubmit)}>
-          {step === 1 && (
-            <div className="space-y-5 animate-fade-up">
-              <h2 className="font-display text-xl font-bold text-gray-900">
-                Que livrons-nous?
-              </h2>
-              <div className="grid grid-cols-2 gap-3">
-                {ORDER_TYPES.map((t) => (
-                  <button
-                    key={t.v}
-                    type="button"
-                    onClick={() => form.setValue("type", t.v)}
-                    className={`p-4 rounded-xl text-left transition-all relative ${
-                      type === t.v
-                        ? "bg-brand-50 border-2 border-brand-primary"
-                        : "bg-gray-50 border-2 border-transparent"
-                    }`}
-                  >
-                    {type === t.v && (
-                      <div className="absolute top-2 right-2 w-4 h-4 rounded-full flex items-center justify-center bg-brand-primary">
-                        <Check className="w-2.5 h-2.5 text-white" />
-                      </div>
-                    )}
-                    <span className="text-2xl block mb-2">{t.emoji}</span>
-                    <p className="font-bold text-sm text-gray-900">{t.label}</p>
-                    <p className="text-xs mt-0.5 text-gray-500">{t.desc}</p>
-                  </button>
-                ))}
+      <div className="flex pt-20">
+        <Sidebar />
+
+        <main className="flex-1 overflow-y-auto px-6 md:px-12 py-10 pb-24">
+          <div className="max-w-4xl mx-auto">
+            <header className="mb-10">
+              <div className="flex items-center gap-4 mb-4">
+                <span className="px-3 py-1 rounded-full bg-[#9ef4d0] text-[#002116] text-xs font-bold">
+                  ÉTAPE 1 SUR 5
+                </span>
+                <h1 className="text-4xl font-extrabold text-[#00503a] tracking-tight">
+                  Détails de l'envoi
+                </h1>
               </div>
-              <button
-                type="button"
-                onClick={() => setStep(2)}
-                className="btn-primary w-full py-3.5"
-              >
-                CONTINUER <ArrowRight className="w-4 h-4" />
-              </button>
-            </div>
-          )}
+              <p className="text-[#3f4944] max-w-xl">
+                Dites-nous en plus sur ce que vous souhaitez envoyer à travers
+                Yaoundé.
+              </p>
+            </header>
 
-          {step === 2 && (
-            <div className="space-y-5 animate-fade-up">
-              <h2 className="font-display text-xl font-bold text-gray-900">
-                Adresses & articles
-              </h2>
-
-              <div className="rounded-2xl p-5 bg-gray-50">
-                <div className="flex items-center gap-2 mb-4">
-                  <div className="w-2.5 h-2.5 rounded-full bg-brand-primary" />
-                  <span className="text-sm font-bold text-gray-900">
-                    Adresse de collecte
-                  </span>
-                </div>
-                <div className="space-y-3">
-                  <div>
-                    <label className="label">Quartier</label>
-                    <select
-                      {...form.register("pickupAddress.neighborhood")}
-                      className="input"
-                    >
-                      <option value="">Sélectionner un quartier</option>
-                      {NEIGHBORHOODS.map((h) => (
-                        <option key={h} value={h}>
-                          {h}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="label">Rue, ou point de repère</label>
-                    <input
-                      {...form.register("pickupAddress.street")}
-                      placeholder="Rue, bâtiment, repère..."
-                      className="input"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="rounded-2xl p-5 bg-gray-50">
-                <div className="flex items-center gap-2 mb-4">
-                  <MapPin className="w-4 h-4 text-brand-primary" />
-                  <span className="text-sm font-bold text-gray-900">
-                    Adresse de livraison
-                  </span>
-                </div>
-                <div className="space-y-3">
-                  <div>
-                    <label className="label">Quartier</label>
-                    <select
-                      {...form.register("deliveryAddress.neighborhood")}
-                      className="input"
-                    >
-                      <option value="">Sélectionner un quartier</option>
-                      {NEIGHBORHOODS.map((h) => (
-                        <option key={h} value={h}>
-                          {h}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="label">Rue, ou point de repère</label>
-                    <input
-                      {...form.register("deliveryAddress.street")}
-                      placeholder="Rue, appartement, école..."
-                      className="input"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="rounded-2xl p-5 bg-gray-50">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-2">
-                    <Package className="w-4 h-4 text-brand-primary" />
-                    <span className="text-sm font-bold text-gray-900">
-                      Articles
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => append({ name: "", quantity: 1 })}
-                    className="flex items-center gap-1 text-xs font-semibold text-brand-primary"
-                  >
-                    <Plus className="w-3.5 h-3.5" /> Ajouter
-                  </button>
-                </div>
-                <div className="space-y-2.5">
-                  {fields.map((field, idx) => (
-                    <div key={field.id} className="flex gap-2">
-                      <input
-                        {...form.register(`items.${idx}.name`)}
-                        placeholder={`Article ${idx + 1}`}
-                        className="input flex-1"
-                      />
-                      <input
-                        {...form.register(`items.${idx}.quantity`, {
-                          valueAsNumber: true,
-                        })}
-                        type="number"
-                        min={1}
-                        className="input w-16 text-center"
-                      />
-                      {fields.length > 1 && (
-                        <button
-                          type="button"
-                          onClick={() => remove(idx)}
-                          className="p-2.5 rounded-lg hover:bg-red-50"
-                        >
-                          <Trash2 className="w-4 h-4 text-red-400" />
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="label">
-                  Notes pour le livreur (optionnel)
+            <div className="space-y-12">
+              <section>
+                <label className="block text-sm font-bold text-[#191c1b] mb-6">
+                  QUE SOUHAITEZ-VOUS LIVRER ?
                 </label>
-                <textarea
-                  {...form.register("notes")}
-                  rows={2}
-                  placeholder="Instructions spéciales, code d'accès..."
-                  className="input resize-none"
-                />
-              </div>
-
-              <div className="flex gap-3">
-                <button
-                  type="button"
-                  onClick={() => setStep(1)}
-                  className="btn-secondary flex-1 py-3"
-                >
-                  Retour
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setStep(3)}
-                  className="btn-primary flex-1 py-3"
-                >
-                  CONTINUER <ArrowRight className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-          )}
-
-          {step === 3 && (
-            <div className="space-y-5 animate-fade-up">
-              <h2 className="font-display text-xl font-bold text-gray-900">
-                Moyen de paiement
-              </h2>
-
-              <div className="space-y-3">
-                {PAYMENT_METHODS.map((p) => (
-                  <button
-                    key={p.v}
-                    type="button"
-                    onClick={() => form.setValue("paymentMethod", p.v)}
-                    className={`payment-option w-full ${pm === p.v ? "selected" : ""}`}
-                  >
-                    <span className="text-2xl">{p.icon}</span>
-                    <div className="flex-1 text-left">
-                      <p className="font-bold text-sm text-gray-900">
-                        {p.label}
-                      </p>
-                      <p className="text-xs text-gray-500">{p.hint}</p>
-                    </div>
-                    <div
-                      className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
-                        pm === p.v
-                          ? "border-brand-primary bg-brand-primary"
-                          : "border-gray-300"
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {ORDER_TYPES.map((type) => (
+                    <button
+                      key={type.v}
+                      onClick={() => setOrderType(type.v)}
+                      className={`flex flex-col items-start p-6 rounded-xl transition-all ${
+                        orderType === type.v
+                          ? "bg-[#9ef4d0] text-[#002116] border-2 border-[#00503a] scale-95"
+                          : "bg-[#f2f4f2] hover:bg-[#e7e9e6] border-2 border-transparent"
                       }`}
                     >
-                      {pm === p.v && (
-                        <div className="w-2 h-2 rounded-full bg-white" />
-                      )}
+                      <span className="text-3xl mb-4">{type.emoji}</span>
+                      <span className="font-bold text-lg">{type.label}</span>
+                      <span className="text-xs text-[#3f4944]">
+                        {type.desc}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </section>
+
+              <div className="grid md:grid-cols-2 gap-10">
+                <div className="space-y-8">
+                  <section>
+                    <label className="block text-sm font-bold text-[#191c1b] mb-3">
+                      DESCRIPTION DE L'ARTICLE
+                    </label>
+                    <textarea
+                      value={description}
+                      onChange={(e) => setDescription(e.target.value)}
+                      className="w-full bg-[#e7e9e6] border-none focus:ring-2 focus:ring-[#00503a] rounded-xl p-4 text-[#191c1b] placeholder:text-[#6f7a73]/60"
+                      placeholder="Ex: 2 plats de NDOLÉ avec compléments..."
+                      rows={4}
+                    />
+                  </section>
+                  <section>
+                    <label className="block text-sm font-bold text-[#191c1b] mb-3">
+                      ESTIMATION DU POIDS
+                    </label>
+                    <div className="flex items-center gap-4 bg-[#f2f4f2] p-2 rounded-xl">
+                      <button
+                        onClick={() => setWeight(Math.max(0.5, weight - 0.5))}
+                        className="w-12 h-12 flex items-center justify-center bg-white rounded-lg shadow-sm text-[#00503a] hover:bg-[#00503a] hover:text-white transition-colors"
+                      >
+                        <Minus className="w-5 h-5" />
+                      </button>
+                      <div className="flex-1 text-center">
+                        <span className="text-2xl font-bold">{weight}</span>
+                        <span className="text-sm font-bold text-[#3f4944] ml-1 uppercase">
+                          kg
+                        </span>
+                      </div>
+                      <button
+                        onClick={() => setWeight(weight + 0.5)}
+                        className="w-12 h-12 flex items-center justify-center bg-white rounded-lg shadow-sm text-[#00503a] hover:bg-[#00503a] hover:text-white transition-colors"
+                      >
+                        <Plus className="w-5 h-5" />
+                      </button>
                     </div>
-                  </button>
-                ))}
-              </div>
-
-              {(pm === PaymentMethod.MTN_MOMO ||
-                pm === PaymentMethod.ORANGE_MONEY) && (
-                <div>
-                  <label className="label">Numéro de téléphone</label>
-                  <input
-                    {...form.register("phoneNumber")}
-                    type="tel"
-                    placeholder="6XXXXXXXX"
-                    className="input"
-                  />
-                  <p className="text-xs mt-1.5 text-gray-500">
-                    {pm === PaymentMethod.MTN_MOMO
-                      ? "Format: 237XXXXXXXXX ou 6XXXXXXXX. Une demande de paiement vous sera envoyée."
-                      : "Vous serez redirigé vers la page Orange Money pour confirmer."}
-                  </p>
+                    <p className="mt-2 text-[10px] text-[#6f7a73] uppercase font-bold tracking-wider">
+                      Note: Le prix final peut varier selon le poids réel.
+                    </p>
+                  </section>
                 </div>
-              )}
 
-              <div className="rounded-xl p-4 bg-brand-50 border border-brand-200">
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">
-                    Frais de livraison estimés
-                  </span>
-                  <span className="font-bold text-gray-900">
-                    500 - 2.000 XAF
-                  </span>
+                <div className="space-y-6">
+                  <label className="block text-sm font-bold text-[#191c1b] mb-3">
+                    OPTIONS DE MANIPULATION
+                  </label>
+
+                  <div className="flex items-center justify-between p-5 bg-[#f2f4f2] rounded-xl">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 bg-[#ffdad6] text-[#93000a] rounded-full flex items-center justify-center">
+                        <Heart className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-[#191c1b]">Fragile</h4>
+                        <p className="text-xs text-[#3f4944]">
+                          Attention particulière requise
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setIsFragile(!isFragile)}
+                      className={`w-14 h-7 rounded-full transition-colors ${isFragile ? "bg-[#00503a]" : "bg-[#e1e3e1]"}`}
+                    >
+                      <div
+                        className={`w-6 h-6 bg-white rounded-full transition-transform ${isFragile ? "translate-x-7" : "translate-x-0.5"}`}
+                      />
+                    </button>
+                  </div>
+
+                  <div className="flex items-center justify-between p-5 bg-[#f2f4f2] rounded-xl">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 bg-[#9ef4d0] text-[#002116] rounded-full flex items-center justify-center">
+                        <Snowflake className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-[#191c1b]">Réfrigéré</h4>
+                        <p className="text-xs text-[#3f4944]">
+                          Maintien de la chaîne de froid
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setIsRefrigerated(!isRefrigerated)}
+                      className={`w-14 h-7 rounded-full transition-colors ${isRefrigerated ? "bg-[#00503a]" : "bg-[#e1e3e1]"}`}
+                    >
+                      <div
+                        className={`w-6 h-6 bg-white rounded-full transition-transform ${isRefrigerated ? "translate-x-7" : "translate-x-0.5"}`}
+                      />
+                    </button>
+                  </div>
+
+                  <div className="mt-8 p-6 bg-[#feb700] text-[#271900] rounded-2xl relative overflow-hidden">
+                    <div className="relative z-10">
+                      <h4 className="font-black text-xl mb-1">
+                        Besoin de vitesse ?
+                      </h4>
+                      <p className="text-sm opacity-90 mb-4">
+                        Livraison prioritaire en moins de 45 minutes.
+                      </p>
+                      <button
+                        onClick={() => setIsUrgent(!isUrgent)}
+                        className={`px-6 py-2 rounded-lg font-bold text-xs uppercase tracking-widest ${isUrgent ? "bg-[#271900] text-white" : "bg-[#271900] text-white"}`}
+                      >
+                        {isUrgent ? "ACTIVÉ" : "ACTIVER FLASH"}
+                      </button>
+                    </div>
+                    <Bolt className="absolute -bottom-4 -right-4 text-[#271900] text-9xl opacity-10 rotate-12" />
+                  </div>
                 </div>
-                <p className="text-xs mt-1 text-gray-500">
-                  Calculés selon la distance réelle.
-                </p>
               </div>
 
-              <div className="flex gap-3">
-                <button
-                  type="button"
-                  onClick={() => setStep(2)}
-                  className="btn-secondary flex-1 py-3"
+              <footer className="flex items-center justify-between pt-10 border-t border-[#bec9c2]/20">
+                <Link
+                  href="/customer"
+                  className="flex items-center gap-2 text-[#3f4944] hover:text-[#00503a] font-bold transition-colors"
                 >
-                  Retour
-                </button>
+                  <ChevronRight className="w-5 h-5 rotate-180" />
+                  RETOUR
+                </Link>
                 <button
-                  type="submit"
-                  disabled={submitting}
-                  className="btn-primary flex-1 py-3"
+                  onClick={handleContinue}
+                  className="px-10 py-4 bg-gradient-to-br from-[#00503a] to-[#006a4e] text-white rounded-xl font-bold text-sm tracking-widest hover:shadow-lg transition-all active:scale-95 flex items-center gap-3"
                 >
-                  {submitting ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" /> Création...
-                    </>
-                  ) : (
-                    <>
-                      <CreditCard className="w-4 h-4" /> COMMANDER
-                    </>
-                  )}
+                  CONTINUER
+                  <ChevronRight className="w-5 h-5" />
                 </button>
-              </div>
+              </footer>
             </div>
-          )}
-        </form>
+          </div>
+        </main>
       </div>
+
+      <PageFooter />
+      <MobileNav />
     </div>
   );
 }

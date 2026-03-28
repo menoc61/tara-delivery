@@ -172,14 +172,12 @@ export default function AdminOrderDetailPage() {
               </div>
             </div>
 
-            {order.notes && String(order.notes) && (
+            {order.notes ? (
               <div className="card p-5">
                 <h3 className="font-bold text-on-surface mb-2">Notes</h3>
-                <p className="text-sm text-on-sur-var">
-                  {order.notes as string}
-                </p>
+                <p className="text-sm text-on-sur-var">{String(order.notes)}</p>
               </div>
-            )}
+            ) : null}
           </div>
 
           <div className="space-y-6">
@@ -202,7 +200,7 @@ export default function AdminOrderDetailPage() {
               </div>
             </div>
 
-            {order.rider && Boolean(order.rider) && (
+            {order.rider ? (
               <div className="card p-5">
                 <h3 className="font-bold text-on-surface mb-4">Livreur</h3>
                 <div className="flex items-center gap-3 mb-3">
@@ -225,10 +223,12 @@ export default function AdminOrderDetailPage() {
                   className="flex items-center gap-2 text-sm text-primary"
                 >
                   <Phone className="w-4 h-4" />{" "}
-                  {(order.rider as Record<string, unknown>)?.phone as string}
+                  {String(
+                    (order.rider as Record<string, unknown>)?.phone || "",
+                  )}
                 </a>
               </div>
-            )}
+            ) : null}
 
             <div className="card p-5">
               <h3 className="font-bold text-on-surface mb-4">Paiement</h3>

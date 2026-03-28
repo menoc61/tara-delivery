@@ -600,7 +600,7 @@ export default function HomePage() {
             </a>
             <a
               className="text-xs text-muted-foreground hover:text-primary transition-colors"
-              href="#"
+              href="/help"
             >
               Contact
             </a>

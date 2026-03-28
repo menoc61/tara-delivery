@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Manrope, Inter } from "next/font/google";
 import { Toaster } from "react-hot-toast";
 import "./globals.css";
+import "leaflet/dist/leaflet.css";
 import { PushNotificationsInit } from "@/components/PushNotificationsInit";
 
 const manrope = Manrope({

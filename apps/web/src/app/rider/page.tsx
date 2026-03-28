@@ -82,7 +82,7 @@ export default function RiderDashboard() {
         status === RiderStatus.AVAILABLE
           ? RiderStatus.OFFLINE
           : RiderStatus.AVAILABLE;
-      await ridersApi.updateStatus({ status: newStatus });
+      await ridersApi.updateStatus(newStatus);
       setStatus(newStatus);
       toast.success(
         newStatus === RiderStatus.AVAILABLE

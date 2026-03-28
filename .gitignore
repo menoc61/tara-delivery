@@ -48,6 +48,7 @@ apps/api/node_modules/
 apps/web/logs/
 apps/web/node_modules/
 # Docker certs (never commit)
+nul
 docker/certs/
 
 # TypeScript

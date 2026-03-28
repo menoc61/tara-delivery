@@ -119,6 +119,8 @@ export const paymentsApi = {
   getByOrder: (orderId: string) => apiClient.get(`/payments/order/${orderId}`),
   verify: (orderId: string) =>
     apiClient.get(`/payments/order/${orderId}/verify`),
+  getMyPayments: (params?: unknown) =>
+    apiClient.get("/payments/my", { params }),
 };
 
 export const ridersApi = {
