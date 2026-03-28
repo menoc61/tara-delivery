@@ -104,22 +104,24 @@ export default function CustomerDashboard() {
             </nav>
           </div>
           <div className="flex items-center gap-4">
-            <button className="p-2 hover:bg-slate-50 rounded-lg transition-all text-slate-600">
+            <Link href="/customer/notifications" className="p-2 hover:bg-slate-50 rounded-lg transition-all text-slate-600">
               <Bell className="w-5 h-5" />
-            </button>
-            <div className="h-10 w-10 rounded-full overflow-hidden bg-[#edeeec]">
-              {user?.avatar ? (
-                <img
-                  src={user.avatar}
-                  alt="Profile"
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <div className="w-full h-full bg-emerald-100 flex items-center justify-center text-emerald-900 font-bold">
-                  {user?.name?.charAt(0) || "U"}
-                </div>
-              )}
-            </div>
+            </Link>
+            <Link href="/customer/profile">
+              <div className="h-10 w-10 rounded-full overflow-hidden bg-[#edeeec]">
+                {user?.avatar ? (
+                  <img
+                    src={user.avatar}
+                    alt="Profile"
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full bg-emerald-100 flex items-center justify-center text-emerald-900 font-bold">
+                    {user?.name?.charAt(0) || "U"}
+                  </div>
+                )}
+              </div>
+            </Link> 
           </div>
           <div className="bg-slate-100 h-[1px] w-full absolute bottom-0 left-0"></div>
         </div>

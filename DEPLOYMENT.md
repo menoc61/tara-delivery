@@ -12,13 +12,13 @@ Complete deployment instructions for TARA Delivery platform.
 └──────┬───────┴────────┬───────────┴───────────────┬───────────┘
        │                │                         │
        └────────────────┴─────────────────────────┘
-                          │
-              ┌───────────▼───────────┐
-              │   Vercel (Frontend)   │
-              │  tara-delivery.       │
-              │     vercel.app        │
-              └───────────┬───────────┘
-                          │ API Calls
+                           │
+               ┌───────────▼───────────┐
+               │   Vercel (Frontend)   │
+               │  tara-delivery.       │
+               │     vercel.app        │
+               └───────────┬───────────┘
+                           │ API Calls
        ┌──────────────────┼──────────────────┐
        │                  │                  │
 ┌──────▼──────┐  ┌─────────▼─────────┐  ┌────▼────────┐
@@ -65,11 +65,13 @@ Complete deployment instructions for TARA Delivery platform.
 ### Initial VPS Setup
 
 SSH into your VPS:
+
 ```bash
 ssh root@168.231.82.118
 ```
 
 Run the setup script:
+
 ```bash
 # Download and run the deployment script
 curl -fsSL https://raw.githubusercontent.com/menoc61/tara-delivery/main/scripts/deploy-vps.sh -o deploy.sh
@@ -98,6 +100,7 @@ git clone https://github.com/menoc61/tara-delivary.git .
 ### Environment Configuration
 
 Create the environment file:
+
 ```bash
 sudo nano /opt/tara-delivery/.env
 ```
@@ -172,6 +175,7 @@ npx prisma migrate deploy
 ```
 
 Or via Supabase Dashboard SQL Editor, run the SQL from:
+
 ```bash
 cat apps/api/prisma/migrations/*/migration.sql
 ```
@@ -221,6 +225,7 @@ vercel env ls
 ## Step 6: Post-Deployment Checklist
 
 ### Backend Tests
+
 ```bash
 # Health check
 curl https://api.englishlanguagecertificate.com/health
@@ -233,6 +238,7 @@ curl https://api.englishlanguagecertificate.com/api/users/me
 ```
 
 ### Frontend Tests
+
 - [ ] Website loads at https://tara-delivery.vercel.app
 - [ ] Login/registration works
 - [ ] Real-time location updates work
@@ -241,6 +247,7 @@ curl https://api.englishlanguagecertificate.com/api/users/me
 - [ ] Push notifications work (if enabled)
 
 ### Supabase Tests
+
 - [ ] Data appears in Supabase tables
 - [ ] Realtime subscriptions working
 - [ ] Database connections stable
@@ -250,7 +257,9 @@ curl https://api.englishlanguagecertificate.com/api/users/me
 ## Troubleshooting
 
 ### CORS Errors
+
 If you see CORS errors in browser:
+
 ```bash
 # Check CORS_ORIGIN on VPS matches your frontend domain
 docker-compose exec api env | grep CORS
@@ -261,6 +270,7 @@ docker-compose restart api
 ```
 
 ### Database Connection Issues
+
 ```bash
 # Test connection
 psql "your-supabase-connection-string" -c "SELECT 1;"
@@ -270,6 +280,7 @@ sudo ufw status
 ```
 
 ### Container Won't Start
+
 ```bash
 # Check logs
 docker-compose logs api
@@ -281,6 +292,7 @@ docker-compose up -d
 ```
 
 ### SSL Certificate Issues
+
 ```bash
 # Renew certificate
 docker run -it --rm \
@@ -293,6 +305,7 @@ docker run -it --rm \
 ## Monitoring
 
 ### View Logs
+
 ```bash
 # API logs
 docker-compose logs -f api
@@ -305,6 +318,7 @@ docker-compose logs --since="2026-01-01T00:00:00"
 ```
 
 ### Resource Usage
+
 ```bash
 # Container stats
 docker stats
@@ -321,11 +335,14 @@ free -h
 ## Backup Strategy
 
 ### Database (Supabase)
+
 Supabase provides automatic backups:
+
 - Free tier: Daily backups retained for 7 days
 - Pro tier: PITR (Point in Time Recovery)
 
 ### Manual Backup
+
 ```bash
 # Export database
 pg_dump "your-connection-string" > backup-$(date +%Y%m%d).sql
@@ -350,12 +367,12 @@ scp root@168.231.82.118:/opt/tara-delivery/backup-*.sql ./
 
 ## Cost Breakdown
 
-| Service | Provider | Monthly Cost |
-|---------|----------|--------------|
-| Frontend Hosting | Vercel | $0 (free tier) |
-| Database + Realtime | Supabase | $0 (500MB limit) |
-| VPS (Backend) | Hostinger | ~$5-10 |
-| Domain | Your registrar | ~$10-15/year |
-| SSL | Let's Encrypt | $0 |
-| Maps | OpenStreetMap | $0 |
-| **Total** | | **~$5-10/month** |
+| Service             | Provider       | Monthly Cost     |
+| ------------------- | -------------- | ---------------- |
+| Frontend Hosting    | Vercel         | $0 (free tier)   |
+| Database + Realtime | Supabase       | $0 (500MB limit) |
+| VPS (Backend)       | Hostinger      | ~$5-10           |
+| Domain              | Your registrar | ~$10-15/year     |
+| SSL                 | Let's Encrypt  | $0               |
+| Maps                | OpenStreetMap  | $0               |
+| **Total**           |                | **~$5-10/month** |

@@ -1,8 +1,23 @@
 "use client";
 
+import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { Package, Plus, Wallet, User, Bell } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import {
+  Package,
+  Plus,
+  Wallet,
+  User,
+  Bell,
+  LogOut,
+  Settings,
+  ChevronDown,
+  X,
+  MessageCircleCode,
+} from "lucide-react";
+import { useAuthStore } from "@/store/auth.store";
+import { authApi } from "@/lib/api-client";
+import toast from "react-hot-toast";
 
 export function MobileNav() {
   const pathname = usePathname();
@@ -125,6 +140,37 @@ export function Sidebar() {
 }
 
 export function Header({ title }: { title?: string }) {
+  const { user, clearAuth } = useAuthStore();
+  const router = useRouter();
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const modalRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+
+  const handleLogout = async () => {
+    try {
+      await authApi.logout();
+    } catch {}
+    clearAuth();
+    toast.success("Déconnexion réussie");
+    router.push("/auth/login");
+  };
+
+  // Close modal when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        modalRef.current &&
+        !modalRef.current.contains(event.target as Node) &&
+        buttonRef.current &&
+        !buttonRef.current.contains(event.target as Node)
+      ) {
+        setShowProfileModal(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   return (
     <header className="fixed top-0 w-full z-50 bg-white/80 backdrop-blur-md shadow-sm">
       <div className="flex justify-between items-center px-8 h-20 max-w-screen-2xl mx-auto w-full relative">
@@ -168,14 +214,92 @@ export function Header({ title }: { title?: string }) {
           >
             <Bell className="w-5 h-5" />
           </Link>
-          <Link
-            href="/customer/profile"
-            className="h-10 w-10 rounded-full overflow-hidden bg-[#edeeec]"
-          >
-            <div className="w-full h-full bg-emerald-100 flex items-center justify-center text-emerald-900 font-bold">
-              U
-            </div>
-          </Link>
+          <div className="relative">
+            <button
+              ref={buttonRef}
+              onClick={() => setShowProfileModal(!showProfileModal)}
+              className="h-10 w-10 rounded-full overflow-hidden bg-[#edeeec] flex items-center justify-center hover:ring-2 hover:ring-[#00503a] hover:ring-offset-2 transition-all"
+            >
+              {user?.avatar ? (
+                <img
+                  src={user.avatar}
+                  alt="Profile"
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="w-full h-full bg-emerald-100 flex items-center justify-center text-emerald-900 font-bold">
+                  {user?.name?.charAt(0) || "U"}
+                </div>
+              )}
+            </button>
+
+            {/* Profile Dropdown Modal */}
+            {showProfileModal && (
+              <div
+                ref={modalRef}
+                className="absolute right-0 top-14 w-72 bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden z-50"
+              >
+                {/* Profile Header */}
+                <div className="p-4 bg-gradient-to-br from-[#00503a] to-[#006a4e] text-white">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center overflow-hidden">
+                      {user?.avatar ? (
+                        <img
+                          src={user.avatar}
+                          alt="Profile"
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <span className="text-xl font-bold">
+                          {user?.name?.charAt(0) || "U"}
+                        </span>
+                      )}
+                    </div>
+                    <div>
+                      <p className="font-bold">{user?.name || "Utilisateur"}</p>
+                      <p className="text-xs opacity-80">
+                        {user?.email || "user@example.com"}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Menu Items */}
+                <div className="p-2">
+                  <Link
+                    href="/customer/profile"
+                    onClick={() => setShowProfileModal(false)}
+                    className="flex items-center gap-3 px-4 py-3 text-slate-700 hover:bg-slate-50 rounded-xl transition-colors"
+                  >
+                    <Settings className="w-5 h-5 text-[#00503a]" />
+                    <span className="font-medium">Paramètres</span>
+                  </Link>
+                  <Link
+                    href="/customer/messages"
+                    onClick={() => setShowProfileModal(false)}
+                    className="flex items-center gap-3 px-4 py-3 text-slate-700 hover:bg-slate-50 rounded-xl transition-colors"
+                  >
+                    <MessageCircleCode className="w-5 h-5 text-[#00503a]" />
+                    <span className="font-medium">Messages</span>
+                  </Link>
+                </div>
+
+                {/* Logout Button */}
+                <div className="p-2 border-t border-slate-100">
+                  <button
+                    onClick={() => {
+                      setShowProfileModal(false);
+                      handleLogout();
+                    }}
+                    className="flex items-center gap-3 px-4 py-3 text-red-600 hover:bg-red-50 rounded-xl transition-colors w-full"
+                  >
+                    <LogOut className="w-5 h-5" />
+                    <span className="font-medium">Se déconnecter</span>
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
         <div className="bg-slate-100 h-[1px] w-full absolute bottom-0 left-0"></div>
       </div>

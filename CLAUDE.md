@@ -6,10 +6,15 @@ This document provides AI agents with the context needed to understand, navigate
 
 ## Project Overview
 
-**TARA DELIVERY** is a full-stack delivery platform built for Yaoundé, Cameroon. It connects customers who need items delivered with motorcycle riders (livreurs) who fulfill those deliveries. The platform supports real-time tracking, mobile money payments (MTN MoMo, Orange Money), and push notifications the entier monorepo should de deployed the web on vercel and the api on a hostinger vps 
-VPS_SSH_KEY = (your private key)
-VPS_HOST = 168.231.82.118
-VPS_USER = root.
+**TARA DELIVERY** is a full-stack delivery platform built for Yaoundé, Cameroon. It connects customers who need items delivered with motorcycle riders (livreurs) who fulfill those deliveries. The platform supports real-time tracking, mobile money payments (MTN MoMo, Orange Money), and push notifications.
+
+**Deployment:**
+
+- Frontend: Vercel (Next.js 14 app)
+- Backend: Hostinger VPS (Node.js + Express)
+- Database: PostgreSQL on VPS
+- VPS_HOST = 168.231.82.118
+- VPS_USER = root
 
 **Primary language:** French (UI/notifications/emails are in French)
 **Currency:** XAF (Central African CFA franc)
@@ -42,33 +47,98 @@ tara-delivery/                  # Monorepo root (pnpm workspaces + Turborepo)
 - **No ORM abstractions over Prisma**: Services call Prisma directly (no repository pattern)
 - **JWT auth with refresh tokens**: Access tokens are short-lived (15m), refresh tokens last 7 days
 - **Webhook-based payment confirmation**: MTN MoMo and Orange Money send payment status via webhooks
+- **PWA Support**: Service worker for offline functionality, push notifications, and app-like experience
 
 ---
 
 ## Technology Stack
 
-| Layer | Technology | Notes |
-|-------|-----------|-------|
-| Runtime | Node.js 20+ | Required minimum version |
-| Package Manager | pnpm 9+ | Uses workspaces |
-| Build Orchestrator | Turborepo | Parallel builds & caching |
-| API Framework | Express.js | With TypeScript |
-| ORM | Prisma | PostgreSQL provider |
-| Database | PostgreSQL 16 | Primary data store |
-| Cache | Redis 7 | Session/rate-limit cache |
-| Frontend | Next.js 14 | App Router, React 18 |
-| Styling | Tailwind CSS | Custom design system (see DESIGN.md) |
-| State Management | Zustand | Client-side state (auth, orders) |
-| Forms | React Hook Form + Zod | With @hookform/resolvers |
-| Charts | Recharts | Admin dashboard analytics |
-| Real-time | Suberbase Realtime DB | Rider tracking, order updates |
-| Push Notifications | Suberbase Cloud Messaging | Mobile & web push |
-| Auth | Passport.js (Google), JWT | Dual auth strategy |
-| Payments | MTN MoMo API, Orange Money API | Cameroonian mobile money |
-| Email | Nodemailer | HTML email templates |
-| Logging | Winston | File + console transports |
-| Validation | Zod | Shared schemas in @tara/zod-schemas |
-| Mobile | Expo React Native | Currently scaffolded only |
+| Layer              | Technology                        | Notes                                |
+| ------------------ | --------------------------------- | ------------------------------------ |
+| Runtime            | Node.js 20+                       | Required minimum version             |
+| Package Manager    | pnpm 9+                           | Uses workspaces                      |
+| Build Orchestrator | Turborepo                         | Parallel builds & caching            |
+| API Framework      | Express.js                        | With TypeScript                      |
+| ORM                | Prisma                            | PostgreSQL provider                  |
+| Database           | PostgreSQL 16                     | Primary data store                   |
+| Cache              | Redis 7                           | Session/rate-limit cache             |
+| Frontend           | Next.js 14                        | App Router, React 18                 |
+| Styling            | Tailwind CSS                      | Custom design system (see DESIGN.md) |
+| State Management   | Zustand                           | Client-side state (auth, orders)     |
+| Forms              | React Hook Form + Zod             | With @hookform/resolvers             |
+| Charts             | Recharts                          | Admin dashboard analytics            |
+| Real-time          | Suberbase Realtime DB             | Rider tracking, order updates        |
+| Push Notifications | Suberbase Cloud Messaging         | Mobile & web push                    |
+| Auth               | Passport.js (Google), JWT         | Dual auth strategy                   |
+| Payments           | MTN MoMo API, Orange Money API    | Cameroonian mobile money             |
+| Email              | Nodemailer                        | HTML email templates                 |
+| Logging            | Winston                           | File + console transports            |
+| Validation         | Zod                               | Shared schemas in @tara/zod-schemas  |
+| Mobile             | Expo React Native                 | Currently scaffolded only            |
+| PWA                | Service Worker + Web App Manifest | Offline support, installable         |
+
+---
+
+## Customer Pages
+
+The customer-facing application includes:
+
+### Dashboard (`/customer`)
+
+- Welcome card with active delivery count
+- Statistics (total deliveries, savings)
+- Suivi en direct (live tracking) section
+- Historique récent (recent history) section
+
+### Order Flow (`/customer/new-order/*`)
+
+1. `/customer/new-order` - Item Details (type, weight, options)
+2. `/customer/new-order/addresses` - Pickup & delivery addresses
+3. `/customer/new-order/fee` - Fee breakdown & pricing
+4. `/customer/new-order/payment` - Payment method selection
+5. `/customer/new-order/success` - Order confirmation
+
+### Order Management
+
+- `/customer/orders` - Order history with filters and stats
+- `/customer/orders/track` - Live tracking with map & chat
+- `/customer/orders/[id]` - Order details
+
+### Profile & Settings (`/customer/profile`)
+
+- Personal info (name, email, phone)
+- Avatar upload
+- Saved addresses management
+- Notification preferences
+- Payment methods (MTN MoMo, Orange Money, Cash)
+- Account security & deactivation
+
+### Other Pages
+
+- `/customer/notifications` - Notification center
+- `/customer/payments` - Payment history
+- `/customer/pricing` - Pricing calculator & simulator
+- `/customer/help` - Help center
+- `/customer/messages` - Chat support
+
+---
+
+## PWA Features
+
+### Service Worker (`public/service-worker.js`)
+
+- Network-first strategy for API calls
+- Cache-first for static assets
+- Offline fallback page
+- Background sync for orders
+- Push notification handling
+
+### Manifest (`public/manifest.json`)
+
+- App name: TARA DELIVERY
+- Theme color: #00503a
+- Icons: Multiple sizes (72x72 to 512x512)
+- Shortcuts: New Order, My Orders, Live Tracking
 
 ---
 
@@ -101,36 +171,12 @@ src/
     └── response.utils.ts       # Standardized API response helpers
 ```
 
-### API Response Format
+### Frontend Delivery Utils (`apps/web/src/lib/delivery-utils.ts`)
 
-All endpoints return:
-```json
-{
-  "success": true,
-  "data": { ... },
-  "message": "Optional message",
-  "meta": { "total": 100, "page": 1, "limit": 20, "totalPages": 5 }
-}
-```
-
-### Error Response Format
-
-```json
-{
-  "success": false,
-  "message": "Error description",
-  "error": "VALIDATION_ERROR"
-}
-```
-
-### Custom Error Classes
-
-Located in `middleware/error.middleware.ts`:
-- `AppError(message, statusCode)` - Base error class
-- `NotFoundError(resource)` - 404
-- `UnauthorizedError(message)` - 401
-- `ForbiddenError(message)` - 403
-- `ConflictError(message)` - 409
+- Haversine distance calculation
+- Fee calculation (base, distance, weight, options, VAT)
+- ETA calculation based on distance
+- CFA currency formatting
 
 ---
 
@@ -140,20 +186,20 @@ The Prisma schema is at `apps/api/prisma/schema.prisma`.
 
 ### Core Models
 
-| Model | Purpose |
-|-------|---------|
-| `User` | All users (customers, riders, admins). Role enum: CUSTOMER, RIDER, ADMIN |
-| `Rider` | Extended rider profile (linked to User). Vehicle, location, status, rating |
-| `Admin` | Extended admin profile (linked to User). Permissions array |
-| `Order` | Delivery orders with flat pickup/delivery address fields |
-| `OrderItem` | Items within an order (name, quantity, weight) |
-| `DeliveryStatusLog` | Audit trail of order status changes |
-| `Payment` | Payment record per order (method, status, external refs) |
-| `Transaction` | Individual payment transactions (debit/credit/refund) |
-| `Notification` | In-app notifications |
-| `Rating` | Customer ratings for riders (1-5 scale) |
-| `SavedAddress` | Customer saved delivery addresses |
-| `PasswordReset` | Password reset tokens with expiry |
+| Model               | Purpose                                                                    |
+| ------------------- | -------------------------------------------------------------------------- |
+| `User`              | All users (customers, riders, admins). Role enum: CUSTOMER, RIDER, ADMIN   |
+| `Rider`             | Extended rider profile (linked to User). Vehicle, location, status, rating |
+| `Admin`             | Extended admin profile (linked to User). Permissions array                 |
+| `Order`             | Delivery orders with flat pickup/delivery address fields                   |
+| `OrderItem`         | Items within an order (name, quantity, weight)                             |
+| `DeliveryStatusLog` | Audit trail of order status changes                                        |
+| `Payment`           | Payment record per order (method, status, external refs)                   |
+| `Transaction`       | Individual payment transactions (debit/credit/refund)                      |
+| `Notification`      | In-app notifications                                                       |
+| `Rating`            | Customer ratings for riders (1-5 scale)                                    |
+| `SavedAddress`      | Customer saved delivery addresses                                          |
+| `PasswordReset`     | Password reset tokens with expiry                                          |
 
 ### Order Status Lifecycle
 
@@ -168,6 +214,7 @@ Valid transitions are enforced in `order.service.ts`.
 ### Enums
 
 Defined in both Prisma schema and `@tara/types`:
+
 - `UserRole`: CUSTOMER, RIDER, ADMIN
 - `OrderStatus`: PENDING, CONFIRMED, ASSIGNED, PICKED_UP, IN_TRANSIT, DELIVERED, CANCELLED, FAILED
 - `OrderType`: PARCEL, FOOD, COURIER, GROCERY
@@ -187,6 +234,9 @@ Base fee: 500 XAF
 + Distance fee: 150 XAF/km
 + Weight fee: 100 XAF/kg (above 2kg threshold)
 + Surcharges: COURIER +500, GROCERY +200
++ Options: Express +1000, Fragile +300, Refrigerated +500
++ Insurance: +250
++ VAT: 19.25%
 Clamped to: min 500 XAF, max 15,000 XAF
 ```
 
@@ -211,24 +261,34 @@ The Next.js app at `apps/web/src/`:
 src/
 ├── app/
 │   ├── page.tsx                # Landing page (public)
-│   ├── layout.tsx              # Root layout (fonts, toaster)
+│   ├── layout.tsx              # Root layout (fonts, toaster, PWA)
 │   ├── globals.css             # Design system CSS
 │   ├── auth/
 │   │   ├── login/page.tsx      # Login form
 │   │   └── register/page.tsx   # Registration form
 │   ├── customer/
 │   │   ├── page.tsx            # Customer dashboard
-│   │   └── new-order/page.tsx  # Multi-step order creation
+│   │   ├── new-order/          # 5-step order flow
+│   │   ├── orders/             # Order history & tracking
+│   │   ├── payments/           # Payment history
+│   │   ├── profile/            # Profile & settings
+│   │   ├── notifications/      # Notification center
+│   │   └── pricing/            # Pricing calculator
 │   ├── rider/
 │   │   └── page.tsx            # Rider dashboard (GPS, orders)
 │   └── admin/
 │       ├── layout.tsx          # Admin sidebar layout
 │       └── page.tsx            # Admin dashboard (charts, stats)
+├── components/
+│   ├── CustomerLayout.tsx      # Shared layout (Header, Sidebar, MobileNav)
+│   ├── PushNotificationsInit.tsx
+│   └── ServiceWorkerRegistration.tsx
 ├── store/
 │   ├── auth.store.ts           # Zustand auth state (persisted to localStorage)
 │   └── order.store.ts          # Zustand order state
 └── lib/
-    └── api-client.ts           # Axios instance with interceptors (auto-refresh)
+    ├── api-client.ts           # Axios instance with interceptors (auto-refresh)
+    └── delivery-utils.ts       # Fee calculation utilities
 ```
 
 ### Auth Flow
@@ -247,6 +307,7 @@ src/
 ### @tara/types (`packages/types/`)
 
 TypeScript interfaces and enums shared between API and frontend. Import as:
+
 ```typescript
 import { User, Order, OrderStatus, UserRole } from "@tara/types";
 ```
@@ -254,6 +315,7 @@ import { User, Order, OrderStatus, UserRole } from "@tara/types";
 ### @tara/zod-schemas (`packages/zod-schemas/`)
 
 Zod validation schemas used on both API (request validation) and frontend (form validation). Import as:
+
 ```typescript
 import { createOrderSchema, CreateOrderInput } from "@tara/zod-schemas";
 ```
@@ -281,11 +343,11 @@ pnpm db:studio    # Open Prisma Studio (visual DB browser)
 
 ### Test Credentials (from seed)
 
-| Role | Email | Password |
-|------|-------|----------|
-| Admin | `admin@tara-delivery.cm` | `Admin@123456` |
-| Customer | `customer@test.cm` | `Customer@123` |
-| Rider | `rider@test.cm` | `Rider@123` |
+| Role     | Email                    | Password       |
+| -------- | ------------------------ | -------------- |
+| Admin    | `admin@tara-delivery.cm` | `Admin@123456` |
+| Customer | `customer@test.cm`       | `Customer@123` |
+| Rider    | `rider@test.cm`          | `Rider@123`    |
 
 ### API Endpoints
 
@@ -323,7 +385,8 @@ Located at `.github/workflows/ci-cd.yml`:
 2. Use `"use client"` directive for interactive pages
 3. Import API client methods from `@/lib/api-client`
 4. Use Zustand stores for state management
-5. Follow existing component patterns and CSS classes from `globals.css`
+5. Use shared layout components from `@/components/CustomerLayout`
+6. Follow existing component patterns and CSS classes from `globals.css`
 
 ### Modifying the Database Schema
 
@@ -337,17 +400,21 @@ Located at `.github/workflows/ci-cd.yml`:
 
 ## Important Files Quick Reference
 
-| File | Purpose |
-|------|---------|
-| `apps/api/prisma/schema.prisma` | Database schema (source of truth) |
-| `apps/api/src/index.ts` | API entry point and middleware |
-| `apps/api/src/middleware/auth.middleware.ts` | Authentication and role guards |
-| `apps/api/src/middleware/error.middleware.ts` | Error handling and custom errors |
-| `apps/api/src/utils/delivery.utils.ts` | Fee calculation and distance |
-| `apps/web/src/lib/api-client.ts` | Frontend API client with auto-refresh |
-| `apps/web/src/store/auth.store.ts` | Auth state management |
-| `apps/web/src/app/globals.css` | Design system CSS classes |
-| `packages/types/src/index.ts` | Shared TypeScript types |
-| `packages/zod-schemas/src/index.ts` | Shared validation schemas |
-| `.env.example` | All environment variables |
-| `docker-compose.yml` | Full Docker stack |
+| File                                          | Purpose                               |
+| --------------------------------------------- | ------------------------------------- |
+| `apps/api/prisma/schema.prisma`               | Database schema (source of truth)     |
+| `apps/api/src/index.ts`                       | API entry point and middleware        |
+| `apps/api/src/middleware/auth.middleware.ts`  | Authentication and role guards        |
+| `apps/api/src/middleware/error.middleware.ts` | Error handling and custom errors      |
+| `apps/api/src/utils/delivery.utils.ts`        | Fee calculation and distance          |
+| `apps/web/src/lib/api-client.ts`              | Frontend API client with auto-refresh |
+| `apps/web/src/lib/delivery-utils.ts`          | Frontend delivery fee calculator      |
+| `apps/web/src/store/auth.store.ts`            | Auth state management                 |
+| `apps/web/src/app/globals.css`                | Design system CSS classes             |
+| `apps/web/src/components/CustomerLayout.tsx`  | Shared customer layout components     |
+| `apps/web/public/manifest.json`               | PWA manifest                          |
+| `apps/web/public/service-worker.js`           | Service worker for offline support    |
+| `packages/types/src/index.ts`                 | Shared TypeScript types               |
+| `packages/zod-schemas/src/index.ts`           | Shared validation schemas             |
+| `.env.example`                                | All environment variables             |
+| `docker-compose.yml`                          | Full Docker stack                     |
