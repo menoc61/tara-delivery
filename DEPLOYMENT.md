@@ -1,378 +1,277 @@
-# Deployment Guide
+# 🚀 Deployment Guide
 
-Complete deployment instructions for TARA Delivery platform.
+## Deployment Options
 
-## Architecture
+### Option 1: Vercel (Frontend) + VPS (Backend)
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                         CLIENTS                              │
-├──────────────┬──────────────────┬───────────────────────────┤
-│   Browser    │   Mobile App     │      Admin Panel          │
-└──────┬───────┴────────┬───────────┴───────────────┬───────────┘
-       │                │                         │
-       └────────────────┴─────────────────────────┘
-                           │
-               ┌───────────▼───────────┐
-               │   Vercel (Frontend)   │
-               │  tara-delivery.       │
-               │     vercel.app        │
-               └───────────┬───────────┘
-                           │ API Calls
-       ┌──────────────────┼──────────────────┐
-       │                  │                  │
-┌──────▼──────┐  ┌─────────▼─────────┐  ┌────▼────────┐
-│   Supabase  │  │  Hostinger VPS    │  │   Redis     │
-│  (Database) │  │  168.231.82.118   │  │  (Cache)    │
-│  Realtime   │  │                   │  │             │
-└─────────────┘  │  api.english-     │  └─────────────┘
-                 │  languagecerti-   │
-                 │  ficate.com        │
-                 └───────────────────┘
-```
+**Frontend on Vercel:**
 
-## Prerequisites
+1. Push code to GitHub
+2. Go to [vercel.com](https://vercel.com) → Import project
+3. Set Root Directory: `apps/web`
+4. Add environment variables
+5. Deploy
 
-1. **Vercel Account** - For frontend hosting (free)
-2. **Supabase Account** - For database and realtime features (free tier)
-3. **Hostinger VPS** - For backend API (IP: 168.231.82.118)
-4. **Domain** - api.englishlanguagecertificate.com
-5. **GitHub Account** - For CI/CD
-
----
-
-## Step 1: Supabase Setup
-
-1. Go to [supabase.com](https://supabase.com) and create a new project
-2. Once created, get your credentials from Settings → API:
-   - `Project URL` → `SUPABASE_URL`
-   - `anon` public API key → `SUPABASE_ANON_KEY`
-   - `service_role` secret key → `SUPABASE_SERVICE_KEY`
-
-3. Enable Realtime:
-   - Go to Database → Replication
-   - Enable realtime for tables: `rider`, `order`, `notification`
-
-4. Get Database Connection String:
-   - Go to Settings → Database → Connection string
-   - Choose "Prisma" format
-   - This goes in `DATABASE_URL`
-
----
-
-## Step 2: Backend Deployment (Hostinger VPS)
-
-### Initial VPS Setup
-
-SSH into your VPS:
+**Backend on VPS:**
 
 ```bash
-ssh root@168.231.82.118
-```
+# SSH to VPS
+ssh root@your-vps-ip
 
-Run the setup script:
-
-```bash
-# Download and run the deployment script
-curl -fsSL https://raw.githubusercontent.com/menoc61/tara-delivery/main/scripts/deploy-vps.sh -o deploy.sh
-chmod +x deploy.sh
-sudo ./deploy.sh
-```
-
-### Manual Setup (if script fails)
-
-```bash
 # Install Docker
 curl -fsSL https://get.docker.com | sh
 
-# Install Docker Compose
-sudo curl -L "https://github.com/docker/compose/releases/download/v2.24.0/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-sudo chmod +x /usr/local/bin/docker-compose
-
-# Create directories
-mkdir -p /opt/tara-delivery
-cd /opt/tara-delivery
-
 # Clone repository
-git clone https://github.com/menoc61/tara-delivary.git .
-```
-
-### Environment Configuration
-
-Create the environment file:
-
-```bash
-sudo nano /opt/tara-delivery/.env
-```
-
-Paste the contents from `apps/api/.env.example` and fill in your actual values.
-
-### SSL Certificate (Let's Encrypt)
-
-```bash
-# Get SSL certificate
-docker run -it --rm \
-  -v /opt/tara-delivery/certbot/conf:/etc/letsencrypt \
-  -v /opt/tara-delivery/certbot/www:/var/www/certbot \
-  -p 80:80 \
-  certbot/certbot certonly --standalone \
-  -d api.englishlanguagecertificate.com
-```
-
-### Start Services
-
-```bash
+git clone https://github.com/menoc61/tara-delivary.git /opt/tara-delivery
 cd /opt/tara-delivery
-docker-compose up -d
-```
 
-### Verify Deployment
+# Setup environment
+cp apps/api/.env.example apps/api/.env
+# Edit .env with production values
 
-```bash
-# Check if containers are running
-docker-compose ps
+# Start with Docker
+docker compose up -d
 
-# View logs
-docker-compose logs -f api
-
-# Test API
-curl https://api.englishlanguagecertificate.com/health
+# Run migrations
+docker compose exec api npx prisma migrate deploy
+docker compose exec api npx prisma db seed
 ```
 
 ---
 
-## Step 3: Frontend Deployment (Vercel)
+### Option 2: Full Docker Deployment (VPS)
 
-### Connect to Vercel
+```bash
+# 1. SSH to VPS
+ssh root@your-vps-ip
 
-1. Push your code to GitHub
-2. Go to [vercel.com](https://vercel.com) and import your repository
-3. Configure build settings:
+# 2. Install Docker & Docker Compose
+curl -fsSL https://get.docker.com | sh
+
+# 3. Clone repository
+git clone https://github.com/menoc61/tara-delivary.git /opt/tara-delivery
+cd /opt/tara-delivery
+
+# 4. Create .env file
+cat > apps/api/.env << EOF
+DATABASE_URL=postgresql://postgres:postgres@postgres:5432/tara_delivery
+PORT=4000
+JWT_SECRET=$(openssl rand -hex 32)
+REFRESH_TOKEN_SECRET=$(openssl rand -hex 32)
+GOOGLE_CLIENT_ID=your-google-client-id
+GOOGLE_CLIENT_SECRET=your-google-secret
+GOOGLE_CALLBACK_URL=https://your-domain.com/api/auth/google/callback
+CORS_ORIGIN=https://your-domain.com,https://tara-delivery-web.vercel.app
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_SERVICE_KEY=your-service-key
+EOF
+
+cat > apps/web/.env << EOF
+NEXT_PUBLIC_API_URL=https://your-domain.com/api
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+EOF
+
+# 5. Start services
+docker compose up -d
+
+# 6. Run migrations
+docker compose exec api npx prisma migrate deploy
+docker compose exec api npx prisma db seed
+
+# 7. Setup SSL (Let's Encrypt)
+apt install -y certbot
+certbot certonly --standalone -d your-domain.com
+
+# 8. Update nginx.conf with your domain
+# 9. Start with nginx
+docker compose --profile production up -d
+```
+
+---
+
+### Option 3: Vercel Deployment Only (Frontend)
+
+For frontend-only deployment with remote API:
+
+1. **Push to GitHub**
+2. **Import on Vercel**
+3. **Configure:**
    - Framework: Next.js
    - Root Directory: `apps/web`
-   - Build Command: `cd ../.. && pnpm build --filter=web`
-4. Add Environment Variables:
-   - `NEXT_PUBLIC_API_URL` = `https://api.englishlanguagecertificate.com/api`
-   - `NEXT_PUBLIC_SUPABASE_URL` = your Supabase URL
-   - `NEXT_PUBLIC_SUPABASE_ANON_KEY` = your Supabase anon key
-
-### Configure Custom Domain
-
-1. In Vercel dashboard, go to your project → Settings → Domains
-2. Add `tara-delivery.vercel.app` (or your custom domain)
+   - Build Command: `pnpm build`
+4. **Environment Variables:**
+   ```
+   NEXT_PUBLIC_API_URL=https://your-api-domain.com/api
+   NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+   ```
+5. **Deploy**
 
 ---
 
-## Step 4: Database Migration
-
-Run migrations on the production database:
+## Docker Commands Reference
 
 ```bash
-# On your local machine with production DATABASE_URL
-export DATABASE_URL="your-supabase-connection-string"
-cd apps/api
-npx prisma migrate deploy
-```
+# Start services
+docker compose up -d
 
-Or via Supabase Dashboard SQL Editor, run the SQL from:
+# View logs
+docker compose logs -f
 
-```bash
-cat apps/api/prisma/migrations/*/migration.sql
-```
+# Stop services
+docker compose down
 
----
+# Rebuild after changes
+docker compose up -d --build
 
-## Step 5: CI/CD Setup
+# Access container
+docker compose exec api sh
 
-### GitHub Secrets
+# Run migrations
+docker compose exec api npx prisma migrate deploy
 
-Add these secrets to your GitHub repository (Settings → Secrets and variables → Actions):
+# Seed database
+docker compose exec api npx prisma db seed
 
-```
-# VPS Deployment
-VPS_USER=root
-VPS_SSH_KEY=-----BEGIN OPENSSH PRIVATE KEY-----
-...
------END OPENSSH PRIVATE KEY-----
-
-# Vercel Deployment
-VERCEL_TOKEN=your-vercel-token
-VERCEL_ORG_ID=your-org-id
-VERCEL_PROJECT_ID=your-project-id
-
-# GitHub Container Registry (auto-generated)
-GITHUB_TOKEN
-```
-
-### Get Vercel Credentials
-
-```bash
-# Install Vercel CLI
-npm i -g vercel
-
-# Login
-vercel login
-
-# Get token
-vercel tokens create
-
-# Get org and project IDs
-vercel env ls
+# View running containers
+docker ps
 ```
 
 ---
 
-## Step 6: Post-Deployment Checklist
+## Environment Variables
 
-### Backend Tests
+### Backend (.env)
 
-```bash
-# Health check
-curl https://api.englishlanguagecertificate.com/health
+```env
+# Database
+DATABASE_URL=postgresql://user:pass@host:5432/db
 
-# API test
-curl https://api.englishlanguagecertificate.com/api/health
+# Server
+PORT=4000
+NODE_ENV=production
 
-# Auth test (should return 401 without token)
-curl https://api.englishlanguagecertificate.com/api/users/me
+# JWT
+JWT_SECRET=your-secret
+REFRESH_TOKEN_SECRET=your-refresh-secret
+
+# Google OAuth
+GOOGLE_CLIENT_ID=your-client-id
+GOOGLE_CLIENT_SECRET=your-client-secret
+GOOGLE_CALLBACK_URL=https://your-domain.com/api/auth/google/callback
+
+# CORS
+CORS_ORIGIN=https://your-domain.com,https://tara-delivery-web.vercel.app
+
+# Supabase
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_SERVICE_KEY=your-service-key
 ```
 
-### Frontend Tests
+### Frontend (.env)
 
-- [ ] Website loads at https://tara-delivery.vercel.app
-- [ ] Login/registration works
-- [ ] Real-time location updates work
-- [ ] Orders can be created
-- [ ] Map displays correctly
-- [ ] Push notifications work (if enabled)
+```env
+NEXT_PUBLIC_API_URL=https://your-domain.com/api
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+```
 
-### Supabase Tests
+---
 
-- [ ] Data appears in Supabase tables
-- [ ] Realtime subscriptions working
-- [ ] Database connections stable
+## Google OAuth Setup
+
+1. Go to [Google Cloud Console](https://console.cloud.google.com)
+2. Create project or select existing
+3. Enable Google+ API
+4. Create OAuth 2.0 credentials
+5. Add authorized redirect URIs:
+   - `https://your-domain.com/api/auth/google/callback`
+   - `http://localhost:4000/api/auth/google/callback`
+
+---
+
+## SSL Certificate (Let's Encrypt)
+
+```bash
+# Install certbot
+apt install -y certbot
+
+# Get certificate
+certbot certonly --standalone -d your-domain.com
+
+# Certificate locations
+# /etc/letsencrypt/live/your-domain.com/fullchain.pem
+# /etc/letsencrypt/live/your-domain.com/privkey.pem
+
+# Auto-renewal
+certbot renew --dry-run
+```
+
+---
+
+## Nginx Configuration
+
+Update `docker/nginx.conf` with your domain:
+
+```nginx
+server {
+    listen 80;
+    server_name your-domain.com;
+    return 301 https://$server_name$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    server_name your-domain.com;
+
+    ssl_certificate /etc/nginx/certs/fullchain.pem;
+    ssl_certificate_key /etc/nginx/certs/privkey.pem;
+
+    location /api {
+        proxy_pass http://api:4000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+
+    location / {
+        proxy_pass http://web:3000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+}
+```
 
 ---
 
 ## Troubleshooting
 
-### CORS Errors
-
-If you see CORS errors in browser:
-
-```bash
-# Check CORS_ORIGIN on VPS matches your frontend domain
-docker-compose exec api env | grep CORS
-
-# Update if needed
-sudo nano /opt/tara-delivery/.env
-docker-compose restart api
-```
-
-### Database Connection Issues
-
-```bash
-# Test connection
-psql "your-supabase-connection-string" -c "SELECT 1;"
-
-# Check firewall
-sudo ufw status
-```
-
-### Container Won't Start
+### Container won't start
 
 ```bash
 # Check logs
-docker-compose logs api
+docker compose logs api
 
-# Rebuild
-docker-compose down
-docker-compose build --no-cache
-docker-compose up -d
+# Check if ports are in use
+netstat -tlnp | grep -E '3000|4000'
 ```
 
-### SSL Certificate Issues
+### Database connection failed
 
 ```bash
-# Renew certificate
-docker run -it --rm \
-  -v /opt/tara-delivery/certbot/conf:/etc/letsencrypt \
-  certbot/certbot renew
+# Check postgres container
+docker compose ps postgres
+
+# Test connection
+docker compose exec postgres psql -U postgres -d tara_delivery
 ```
 
----
-
-## Monitoring
-
-### View Logs
+### Build fails
 
 ```bash
-# API logs
-docker-compose logs -f api
-
-# All services
-docker-compose logs -f
-
-# Specific time range
-docker-compose logs --since="2026-01-01T00:00:00"
+# Clean build
+docker compose down
+docker system prune -f
+docker compose build --no-cache
+docker compose up -d
 ```
-
-### Resource Usage
-
-```bash
-# Container stats
-docker stats
-
-# Disk usage
-df -h
-
-# Memory
-free -h
-```
-
----
-
-## Backup Strategy
-
-### Database (Supabase)
-
-Supabase provides automatic backups:
-
-- Free tier: Daily backups retained for 7 days
-- Pro tier: PITR (Point in Time Recovery)
-
-### Manual Backup
-
-```bash
-# Export database
-pg_dump "your-connection-string" > backup-$(date +%Y%m%d).sql
-
-# Download to local
-scp root@168.231.82.118:/opt/tara-delivery/backup-*.sql ./
-```
-
----
-
-## Security Checklist
-
-- [ ] JWT secrets are strong and unique
-- [ ] VAPID keys generated and kept secret
-- [ ] Database URL uses SSL
-- [ ] VPS firewall configured (only 22, 80, 443 open)
-- [ ] CORS_ORIGIN set to exact frontend domain
-- [ ] Environment files not committed to git
-- [ ] Supabase RLS (Row Level Security) policies configured
-
----
-
-## Cost Breakdown
-
-| Service             | Provider       | Monthly Cost     |
-| ------------------- | -------------- | ---------------- |
-| Frontend Hosting    | Vercel         | $0 (free tier)   |
-| Database + Realtime | Supabase       | $0 (500MB limit) |
-| VPS (Backend)       | Hostinger      | ~$5-10           |
-| Domain              | Your registrar | ~$10-15/year     |
-| SSL                 | Let's Encrypt  | $0               |
-| Maps                | OpenStreetMap  | $0               |
-| **Total**           |                | **~$5-10/month** |

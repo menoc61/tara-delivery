@@ -16,11 +16,15 @@ export const authController = {
 
   async googleCallback(req: Request, res: Response) {
     const profile = req.user as {
-      id: string; email: string; name: string; avatar?: string;
+      id: string;
+      email: string;
+      name: string;
+      avatar?: string;
     };
     const result = await authService.handleGoogleUser(profile);
     // Redirect to frontend with tokens
-    const redirectUrl = `${process.env.CORS_ORIGIN}/auth/callback?accessToken=${result.tokens.accessToken}&refreshToken=${result.tokens.refreshToken}`;
+    const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
+    const redirectUrl = `${frontendUrl}/auth/callback?accessToken=${result.tokens.accessToken}&refreshToken=${result.tokens.refreshToken}`;
     res.redirect(redirectUrl);
   },
 

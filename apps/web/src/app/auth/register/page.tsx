@@ -301,7 +301,7 @@ function RegisterForm() {
               <button
                 type="button"
                 onClick={() => {
-                  window.location.href = "/api/auth/google";
+                  window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/auth/google`;
                 }}
                 className="flex items-center justify-center gap-2 py-3 px-4 bg-white border border-outline rounded-lg hover:bg-muted transition-colors"
               >

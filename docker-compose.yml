@@ -1,0 +1,58 @@
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: tara-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: tara_delivery
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # API Backend
+  api:
+    build:
+      context: .
+      dockerfile: docker/api.Dockerfile
+    container_name: tara-api
+    restart: unless-stopped
+    ports:
+      - "4000:4000"
+    env_file:
+      - apps/api/.env
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/tara_delivery
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: sh -c "cd apps/api && npx prisma migrate deploy && npm start"
+
+  # Web Frontend
+  web:
+    build:
+      context: .
+      dockerfile: docker/web.Dockerfile
+    container_name: tara-web
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    env_file:
+      - apps/web/.env
+    environment:
+      NODE_ENV: production
+    depends_on:
+      - api
+
+volumes:
+  postgres_data:
