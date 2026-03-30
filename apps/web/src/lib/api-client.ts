@@ -138,11 +138,27 @@ export const ridersApi = {
 export const usersApi = {
   getMe: () => apiClient.get("/users/me"),
   updateProfile: (data: unknown) => apiClient.patch("/users/me", data),
+  uploadAvatar: (avatar: string) =>
+    apiClient.post("/users/me/avatar", { avatar }),
+  deleteAvatar: () => apiClient.delete("/users/me/avatar"),
+  changePassword: (data: { currentPassword: string; newPassword: string }) =>
+    apiClient.post("/users/me/change-password", data),
+  updatePreferences: (data: {
+    smsAlerts: boolean;
+    emailInvoices: boolean;
+    promotions: boolean;
+  }) => apiClient.patch("/users/me/preferences", data),
+  updatePaymentMethod: (defaultPaymentMethod: string) =>
+    apiClient.patch("/users/me/payment-method", { defaultPaymentMethod }),
+  deactivateAccount: (reason?: string) =>
+    apiClient.post("/users/me/deactivate", { reason }),
   getAddresses: () => apiClient.get("/users/me/addresses"),
   addAddress: (data: unknown) => apiClient.post("/users/me/addresses", data),
   updateAddress: (id: string, data: unknown) =>
     apiClient.patch(`/users/me/addresses/${id}`, data),
   deleteAddress: (id: string) => apiClient.delete(`/users/me/addresses/${id}`),
+  setDefaultAddress: (id: string) =>
+    apiClient.post(`/users/me/addresses/${id}/default`),
 };
 
 export const notificationsApi = {

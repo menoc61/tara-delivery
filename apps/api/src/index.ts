@@ -27,9 +27,6 @@ import webhookRoutes from "./modules/payments/webhook.routes";
 const app = express();
 const PORT = process.env.PORT || 4000;
 
-// ── Initialize External Services ─────────────────────────
-// initFirebase(); // Now using Supabase Realtime instead
-
 // ── Security Middleware ───────────────────────────────────
 app.use(
   helmet({

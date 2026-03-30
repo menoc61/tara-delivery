@@ -6,7 +6,7 @@ const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY;
 
 if (vapidPublicKey && vapidPrivateKey) {
   webPush.setVapidDetails(
-    "mailto:admin@taradelivery.com",
+    "mailto:gillemomeni@gmail.com",
     vapidPublicKey,
     vapidPrivateKey,
   );

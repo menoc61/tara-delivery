@@ -66,6 +66,7 @@ export default function CustomerProfilePage() {
   const [showAddAddressModal, setShowAddAddressModal] = useState(false);
   const [showDeactivateModal, setShowDeactivateModal] = useState(false);
   const [showEditAddressModal, setShowEditAddressModal] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [editingAddress, setEditingAddress] = useState<any>(null);
 
   // New address form
@@ -73,70 +74,60 @@ export default function CustomerProfilePage() {
   const [newAddressStreet, setNewAddressStreet] = useState("");
   const [newAddressNeighborhood, setNewAddressNeighborhood] = useState("");
   const [newAddressCity, setNewAddressCity] = useState("Yaoundé");
-  const [newAddressInstructions, setNewAddressInstructions] = useState("");
+  const [newAddressLandmark, setNewAddressLandmark] = useState("");
   const [newAddressIsDefault, setNewAddressIsDefault] = useState(false);
   const [savingAddress, setSavingAddress] = useState(false);
 
-  // Saved addresses
-  const [savedAddresses, setSavedAddresses] = useState<Array<any>>([
-    {
-      id: 1,
-      label: "Maison",
-      icon: "home",
-      street: "Rue de l'Ambassade",
-      neighborhood: "Bastos",
-      city: "Yaoundé",
-      instructions: "Porte verte après le rond-point",
-      isDefault: true,
-    },
-    {
-      id: 2,
-      label: "Bureau",
-      icon: "work",
-      street: "Avenue Kennedy",
-      neighborhood: "Centre-ville",
-      city: "Yaoundé",
-      instructions: "Immeuble CAA, 4ème Étage",
-      isDefault: false,
-    },
-  ]);
+  // Password change form
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
 
+  // Load data on mount
   useEffect(() => {
-    usersApi
-      .getAddresses()
-      .then((r) => setAddresses(r.data.data || []))
-      .catch(() => setAddresses([]))
-      .finally(() => setLoading(false));
+    loadAddresses();
   }, []);
+
+  const loadAddresses = async () => {
+    try {
+      const r = await usersApi.getAddresses();
+      setAddresses(r.data.data || []);
+    } catch (error) {
+      console.error("Error loading addresses:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Validate file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
       toast.error("L'image ne doit pas dépasser 5MB");
       return;
     }
 
-    // Validate file type
     if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
       toast.error("Format accepté: JPG, PNG, WebP");
       return;
     }
 
     try {
-      // Create preview URL
-      const previewUrl = URL.createObjectURL(file);
-      setAvatarUrl(previewUrl);
+      // Convert to base64
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const base64 = reader.result as string;
+        setAvatarUrl(base64);
 
-      // In production, this would upload to your storage service
-      // const formData = new FormData();
-      // formData.append('avatar', file);
-      // const response = await usersApi.uploadAvatar(formData);
-      // setAvatarUrl(response.data.data.url);
-
-      toast.success("Photo mise à jour");
+        try {
+          await usersApi.uploadAvatar(base64);
+          toast.success("Photo mise à jour");
+        } catch (error) {
+          toast.error("Erreur lors du téléchargement");
+        }
+      };
+      reader.readAsDataURL(file);
     } catch (error) {
       toast.error("Erreur lors du téléchargement");
     }
@@ -147,7 +138,6 @@ export default function CustomerProfilePage() {
     try {
       await usersApi.updateProfile({
         name: `${firstName} ${lastName}`.trim(),
-        email,
         phone: `237${phone.replace(/\s/g, "")}`,
       });
       toast.success("Profil mis à jour avec succès");
@@ -166,30 +156,23 @@ export default function CustomerProfilePage() {
 
     setSavingAddress(true);
     try {
-      const newAddr = {
-        id: Date.now(),
-        label:
-          newAddressLabel === "home"
-            ? "Maison"
-            : newAddressLabel === "work"
-              ? "Bureau"
-              : "Autre",
-        icon: newAddressLabel,
+      const label =
+        newAddressLabel === "home"
+          ? "Maison"
+          : newAddressLabel === "work"
+            ? "Bureau"
+            : "Autre";
+
+      await usersApi.addAddress({
+        label,
         street: newAddressStreet,
         neighborhood: newAddressNeighborhood,
         city: newAddressCity,
-        instructions: newAddressInstructions,
+        landmark: newAddressLandmark,
         isDefault: newAddressIsDefault,
-      };
+      });
 
-      // Update isDefault for other addresses
-      if (newAddressIsDefault) {
-        setSavedAddresses((prev) =>
-          prev.map((addr) => ({ ...addr, isDefault: false })),
-        );
-      }
-
-      setSavedAddresses((prev) => [...prev, newAddr]);
+      await loadAddresses();
       setShowAddAddressModal(false);
 
       // Reset form
@@ -197,7 +180,7 @@ export default function CustomerProfilePage() {
       setNewAddressStreet("");
       setNewAddressNeighborhood("");
       setNewAddressCity("Yaoundé");
-      setNewAddressInstructions("");
+      setNewAddressLandmark("");
       setNewAddressIsDefault(false);
 
       toast.success("Adresse ajoutée avec succès");
@@ -208,28 +191,39 @@ export default function CustomerProfilePage() {
     }
   };
 
-  const handleDeleteAddress = (id: number) => {
-    setSavedAddresses((prev) => prev.filter((addr) => addr.id !== id));
-    toast.success("Adresse supprimée");
+  const handleDeleteAddress = async (id: string) => {
+    try {
+      await usersApi.deleteAddress(id);
+      await loadAddresses();
+      toast.success("Adresse supprimée");
+    } catch (error) {
+      toast.error("Erreur lors de la suppression");
+    }
   };
 
-  const handleSetDefaultAddress = (id: number) => {
-    setSavedAddresses((prev) =>
-      prev.map((addr) => ({
-        ...addr,
-        isDefault: addr.id === id,
-      })),
-    );
-    toast.success("Adresse par défaut mise à jour");
+  const handleSetDefaultAddress = async (id: string) => {
+    try {
+      await usersApi.setDefaultAddress(id);
+      await loadAddresses();
+      toast.success("Adresse par défaut mise à jour");
+    } catch (error) {
+      toast.error("Erreur lors de la mise à jour");
+    }
   };
 
   const handleEditAddress = (address: any) => {
     setEditingAddress(address);
-    setNewAddressLabel(address.icon);
+    setNewAddressLabel(
+      address.label === "Maison"
+        ? "home"
+        : address.label === "Bureau"
+          ? "work"
+          : "other",
+    );
     setNewAddressStreet(address.street);
     setNewAddressNeighborhood(address.neighborhood);
-    setNewAddressCity(address.city);
-    setNewAddressInstructions(address.instructions);
+    setNewAddressCity(address.city || "Yaoundé");
+    setNewAddressLandmark(address.landmark || "");
     setNewAddressIsDefault(address.isDefault);
     setShowEditAddressModal(true);
   };
@@ -242,28 +236,23 @@ export default function CustomerProfilePage() {
 
     setSavingAddress(true);
     try {
-      setSavedAddresses((prev) =>
-        prev.map((addr) =>
-          addr.id === editingAddress.id
-            ? {
-                ...addr,
-                label:
-                  newAddressLabel === "home"
-                    ? "Maison"
-                    : newAddressLabel === "work"
-                      ? "Bureau"
-                      : "Autre",
-                icon: newAddressLabel,
-                street: newAddressStreet,
-                neighborhood: newAddressNeighborhood,
-                city: newAddressCity,
-                instructions: newAddressInstructions,
-                isDefault: newAddressIsDefault,
-              }
-            : addr,
-        ),
-      );
+      const label =
+        newAddressLabel === "home"
+          ? "Maison"
+          : newAddressLabel === "work"
+            ? "Bureau"
+            : "Autre";
 
+      await usersApi.updateAddress(editingAddress.id, {
+        label,
+        street: newAddressStreet,
+        neighborhood: newAddressNeighborhood,
+        city: newAddressCity,
+        landmark: newAddressLandmark,
+        isDefault: newAddressIsDefault,
+      });
+
+      await loadAddresses();
       setShowEditAddressModal(false);
       setEditingAddress(null);
 
@@ -272,7 +261,7 @@ export default function CustomerProfilePage() {
       setNewAddressStreet("");
       setNewAddressNeighborhood("");
       setNewAddressCity("Yaoundé");
-      setNewAddressInstructions("");
+      setNewAddressLandmark("");
       setNewAddressIsDefault(false);
 
       toast.success("Adresse mise à jour");
@@ -283,22 +272,78 @@ export default function CustomerProfilePage() {
     }
   };
 
-  const handleDeactivateAccount = () => {
-    // Create mailto link for account deactivation
-    const subject = encodeURIComponent(
-      "Demande de désactivation de compte TARA DELIVERY",
-    );
-    const body = encodeURIComponent(
-      `Bonjour,\n\nJe souhaite désactiver mon compte TARA DELIVERY.\n\nNom: ${user?.name}\nEmail: ${user?.email}\nTéléphone: ${user?.phone}\n\nMerci de procéder à la désactivation de mon compte.\n\nCordialement,\n${user?.name}`,
-    );
-    window.location.href = `mailto:support@tara-delivery.cm?subject=${subject}&body=${body}`;
-    setShowDeactivateModal(false);
-    toast.success("Email de demande préparé");
+  const handleUpdatePreferences = async () => {
+    try {
+      await usersApi.updatePreferences({
+        smsAlerts,
+        emailInvoices,
+        promotions,
+      });
+      toast.success("Préférences mises à jour");
+    } catch (error) {
+      toast.error("Erreur lors de la mise à jour");
+    }
+  };
+
+  const handleUpdatePaymentMethod = async (method: string) => {
+    try {
+      await usersApi.updatePaymentMethod(method);
+      setDefaultPayment(method);
+      toast.success("Méthode de paiement mise à jour");
+    } catch (error) {
+      toast.error("Erreur lors de la mise à jour");
+    }
+  };
+
+  const handleChangePassword = async () => {
+    if (newPassword !== confirmPassword) {
+      toast.error("Les mots de passe ne correspondent pas");
+      return;
+    }
+    if (newPassword.length < 8) {
+      toast.error("Le mot de passe doit contenir au moins 8 caractères");
+      return;
+    }
+
+    try {
+      await usersApi.changePassword({ currentPassword, newPassword });
+      setShowPasswordModal(false);
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      toast.success("Mot de passe modifié avec succès");
+    } catch (error: any) {
+      toast.error(
+        error.response?.data?.message ||
+          "Erreur lors du changement de mot de passe",
+      );
+    }
+  };
+
+  const handleDeactivateAccount = async () => {
+    try {
+      await usersApi.deactivateAccount();
+      toast.success("Compte désactivé");
+      router.push("/auth/login");
+    } catch (error) {
+      toast.error("Erreur lors de la désactivation");
+    }
+  };
+
+  const getAddressIcon = (label: string) => {
+    switch (label) {
+      case "Maison":
+        return <Home className="w-5 h-5" />;
+      case "Bureau":
+        return <Briefcase className="w-5 h-5" />;
+      default:
+        return <MapPin className="w-5 h-5" />;
+    }
   };
 
   return (
     <div className="min-h-screen bg-[#f8faf7] text-[#191c1b]">
-      <Header title="Paramètres" />
+      <Header title="Profil" />
 
       <div className="flex pt-20">
         <Sidebar />
@@ -361,7 +406,11 @@ export default function CustomerProfilePage() {
                     {user?.name || "Utilisateur"}
                   </p>
                   <p className="text-xs text-slate-400">
-                    Membre depuis Mars 2023
+                    Membre depuis{" "}
+                    {new Date(user?.createdAt || Date.now()).toLocaleDateString(
+                      "fr-CM",
+                      { month: "long", year: "numeric" },
+                    )}
                   </p>
                 </div>
 
@@ -396,8 +445,8 @@ export default function CustomerProfilePage() {
                     <input
                       type="email"
                       value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="w-full bg-[#f2f4f2] border-none rounded-lg p-3 text-[#191c1b] focus:ring-2 focus:ring-[#00503a]/20 transition-all"
+                      disabled
+                      className="w-full bg-[#f2f4f2] border-none rounded-lg p-3 text-[#191c1b] focus:ring-2 focus:ring-[#00503a]/20 transition-all opacity-60 cursor-not-allowed"
                     />
                   </div>
                   <div className="col-span-2">
@@ -436,87 +485,73 @@ export default function CustomerProfilePage() {
                   AJOUTER UNE ADRESSE
                 </button>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                {savedAddresses.map((addr) => (
-                  <div
-                    key={addr.id}
-                    className={`${addr.isDefault ? "bg-[#e1e3e1]" : "bg-white"} p-6 rounded-2xl relative group hover:shadow-xl hover:shadow-emerald-900/5 transition-all`}
-                  >
-                    <div className="flex justify-between items-start mb-4">
-                      <div
-                        className={`w-10 h-10 ${
-                          addr.isDefault
-                            ? "bg-[#00503a]/10 text-[#00503a]"
-                            : "bg-[#feb700]/10 text-[#7c5800]"
-                        } rounded-xl flex items-center justify-center`}
-                      >
-                        {addr.icon === "home" ? (
-                          <Home className="w-5 h-5" />
-                        ) : (
-                          <Briefcase className="w-5 h-5" />
-                        )}
-                      </div>
-                      <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button
-                          onClick={() => handleEditAddress(addr)}
-                          className="p-1.5 bg-white text-slate-400 rounded-lg hover:text-[#00503a]"
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {addresses.length === 0 ? (
+                  <div className="col-span-2 text-center py-12 bg-white rounded-2xl">
+                    <MapPin className="w-12 h-12 mx-auto mb-3 text-slate-300" />
+                    <p className="text-slate-500">Aucune adresse enregistrée</p>
+                  </div>
+                ) : (
+                  addresses.map((addr) => (
+                    <div
+                      key={addr.id}
+                      className={`${addr.isDefault ? "bg-[#e1e3e1]" : "bg-white"} p-6 rounded-2xl relative group hover:shadow-xl hover:shadow-emerald-900/5 transition-all`}
+                    >
+                      <div className="flex justify-between items-start mb-4">
+                        <div
+                          className={`w-10 h-10 ${
+                            addr.isDefault
+                              ? "bg-[#00503a]/10 text-[#00503a]"
+                              : "bg-[#feb700]/10 text-[#7c5800]"
+                          } rounded-xl flex items-center justify-center`}
                         >
-                          <Edit className="w-4 h-4" />
-                        </button>
-                        {!addr.isDefault && (
+                          {getAddressIcon(addr.label)}
+                        </div>
+                        <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                           <button
-                            onClick={() => handleDeleteAddress(addr.id)}
-                            className="p-1.5 bg-white text-slate-400 rounded-lg hover:text-[#ba1a1a]"
+                            onClick={() => handleEditAddress(addr)}
+                            className="p-1.5 bg-white text-slate-400 rounded-lg hover:text-[#00503a]"
                           >
-                            <Trash2 className="w-4 h-4" />
+                            <Edit className="w-4 h-4" />
                           </button>
-                        )}
-                        {!addr.isDefault && (
-                          <button
-                            onClick={() => handleSetDefaultAddress(addr.id)}
-                            className="p-1.5 bg-white text-slate-400 rounded-lg hover:text-[#00503a] text-xs"
-                            title="Définir par défaut"
-                          >
-                            <CheckCircle className="w-4 h-4" />
-                          </button>
-                        )}
+                          {!addr.isDefault && (
+                            <button
+                              onClick={() => handleDeleteAddress(addr.id)}
+                              className="p-1.5 bg-white text-slate-400 rounded-lg hover:text-[#ba1a1a]"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
+                          {!addr.isDefault && (
+                            <button
+                              onClick={() => handleSetDefaultAddress(addr.id)}
+                              className="p-1.5 bg-white text-slate-400 rounded-lg hover:text-[#00503a] text-xs"
+                              title="Définir par défaut"
+                            >
+                              <CheckCircle className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                    <h3 className="font-bold text-[#00503a] mb-1">
-                      {addr.label}
-                    </h3>
-                    <p className="text-sm text-slate-600 leading-relaxed">
-                      {addr.neighborhood}, {addr.street},
-                      <br />
-                      {addr.city}
-                    </p>
-                    {addr.instructions && (
-                      <p className="text-xs text-slate-400 mt-2 italic">
-                        {addr.instructions}
+                      <h3 className="font-bold text-[#00503a] mb-1">
+                        {addr.label}
+                      </h3>
+                      <p className="text-sm text-slate-600 leading-relaxed">
+                        {addr.neighborhood}, {addr.street}, {addr.city}
                       </p>
-                    )}
-                    {addr.isDefault && (
-                      <span className="absolute top-6 right-6 px-2 py-0.5 bg-[#9ef4d0] text-[#00503a] text-[10px] font-bold rounded uppercase">
-                        Défaut
-                      </span>
-                    )}
-                  </div>
-                ))}
-
-                {/* Map Preview */}
-                <div className="col-span-2 bg-[#00503a] h-40 rounded-2xl overflow-hidden relative">
-                  <div className="w-full h-full bg-gradient-to-br from-[#00503a] to-[#006a4e] opacity-50 flex items-center justify-center">
-                    <MapPin className="w-12 h-12 text-white/30" />
-                  </div>
-                  <div className="absolute inset-0 bg-gradient-to-t from-[#002116]/80 to-transparent p-6 flex flex-col justify-end">
-                    <p className="text-white text-xs font-bold uppercase tracking-widest opacity-80">
-                      Localisation en temps réel
-                    </p>
-                    <p className="text-white font-medium">
-                      Suivez vos livraisons avec une précision de 5 mètres.
-                    </p>
-                  </div>
-                </div>
+                      {addr.landmark && (
+                        <p className="text-xs text-slate-400 mt-2 italic">
+                          {addr.landmark}
+                        </p>
+                      )}
+                      {addr.isDefault && (
+                        <span className="absolute top-6 right-6 px-2 py-0.5 bg-[#9ef4d0] text-[#00503a] text-[10px] font-bold rounded uppercase">
+                          Défaut
+                        </span>
+                      )}
+                    </div>
+                  ))
+                )}
               </div>
             </section>
 
@@ -543,7 +578,10 @@ export default function CustomerProfilePage() {
                     <input
                       type="checkbox"
                       checked={smsAlerts}
-                      onChange={() => setSmsAlerts(!smsAlerts)}
+                      onChange={() => {
+                        setSmsAlerts(!smsAlerts);
+                        handleUpdatePreferences();
+                      }}
                       className="sr-only peer"
                     />
                     <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#00503a]"></div>
@@ -569,7 +607,10 @@ export default function CustomerProfilePage() {
                     <input
                       type="checkbox"
                       checked={emailInvoices}
-                      onChange={() => setEmailInvoices(!emailInvoices)}
+                      onChange={() => {
+                        setEmailInvoices(!emailInvoices);
+                        handleUpdatePreferences();
+                      }}
                       className="sr-only peer"
                     />
                     <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#00503a]"></div>
@@ -595,7 +636,10 @@ export default function CustomerProfilePage() {
                     <input
                       type="checkbox"
                       checked={promotions}
-                      onChange={() => setPromotions(!promotions)}
+                      onChange={() => {
+                        setPromotions(!promotions);
+                        handleUpdatePreferences();
+                      }}
                       className="sr-only peer"
                     />
                     <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#00503a]"></div>
@@ -617,7 +661,7 @@ export default function CustomerProfilePage() {
                       ? "border-[#00503a] bg-[#9ef4d0]/10"
                       : "border-transparent bg-[#f2f4f2] hover:bg-[#e7e9e6]"
                   }`}
-                  onClick={() => setDefaultPayment("mtn")}
+                  onClick={() => handleUpdatePaymentMethod("mtn")}
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
@@ -648,7 +692,7 @@ export default function CustomerProfilePage() {
                       ? "border-[#00503a] bg-[#9ef4d0]/10"
                       : "border-transparent bg-[#f2f4f2] hover:bg-[#e7e9e6]"
                   }`}
-                  onClick={() => setDefaultPayment("orange")}
+                  onClick={() => handleUpdatePaymentMethod("orange")}
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
@@ -677,7 +721,7 @@ export default function CustomerProfilePage() {
                       ? "border-[#00503a] bg-[#9ef4d0]/10"
                       : "border-transparent bg-[#f2f4f2] hover:bg-[#e7e9e6]"
                   }`}
-                  onClick={() => setDefaultPayment("cash")}
+                  onClick={() => handleUpdatePaymentMethod("cash")}
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
@@ -704,6 +748,32 @@ export default function CustomerProfilePage() {
             </section>
 
             {/* Security Section */}
+            <section className="bg-white rounded-3xl p-8 mb-12">
+              <h2 className="text-2xl font-bold text-[#191c1b] tracking-tight mb-8">
+                Sécurité
+              </h2>
+              <div className="flex items-center justify-between p-6 bg-[#f2f4f2] rounded-xl">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-[#00503a]/10 rounded-xl flex items-center justify-center">
+                    <Lock className="w-6 h-6 text-[#00503a]" />
+                  </div>
+                  <div>
+                    <p className="font-bold text-[#191c1b]">Mot de passe</p>
+                    <p className="text-xs text-slate-500">
+                      Dernière modification il y a 30 jours
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowPasswordModal(true)}
+                  className="px-4 py-2 bg-[#00503a] text-white font-bold text-sm rounded-lg hover:bg-[#006a4e] transition-colors"
+                >
+                  Modifier
+                </button>
+              </div>
+            </section>
+
+            {/* Account Deactivation */}
             <section className="bg-[#ffdad6]/20 rounded-3xl p-8 border-2 border-dashed border-[#ba1a1a]/20">
               <div className="flex items-center gap-4 mb-6">
                 <AlertTriangle className="w-6 h-6 text-[#ba1a1a]" />
@@ -779,7 +849,6 @@ export default function CustomerProfilePage() {
                   ))}
                 </div>
               </div>
-
               <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">
                   Quartier *
@@ -792,7 +861,6 @@ export default function CustomerProfilePage() {
                   className="w-full bg-[#f2f4f2] border-none rounded-lg p-3 text-[#191c1b] focus:ring-2 focus:ring-[#00503a]/20 transition-all"
                 />
               </div>
-
               <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">
                   Rue / Avenue *
@@ -805,7 +873,6 @@ export default function CustomerProfilePage() {
                   className="w-full bg-[#f2f4f2] border-none rounded-lg p-3 text-[#191c1b] focus:ring-2 focus:ring-[#00503a]/20 transition-all"
                 />
               </div>
-
               <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">
                   Ville
@@ -817,20 +884,18 @@ export default function CustomerProfilePage() {
                   className="w-full bg-[#f2f4f2] border-none rounded-lg p-3 text-[#191c1b] focus:ring-2 focus:ring-[#00503a]/20 transition-all"
                 />
               </div>
-
               <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">
                   Instructions supplémentaires
                 </label>
                 <textarea
-                  value={newAddressInstructions}
-                  onChange={(e) => setNewAddressInstructions(e.target.value)}
+                  value={newAddressLandmark}
+                  onChange={(e) => setNewAddressLandmark(e.target.value)}
                   placeholder="Ex: Porte verte, 2ème étage..."
                   rows={3}
                   className="w-full bg-[#f2f4f2] border-none rounded-lg p-3 text-[#191c1b] focus:ring-2 focus:ring-[#00503a]/20 transition-all"
                 />
               </div>
-
               <div className="flex items-center gap-3">
                 <input
                   type="checkbox"
@@ -913,7 +978,6 @@ export default function CustomerProfilePage() {
                   ))}
                 </div>
               </div>
-
               <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">
                   Quartier *
@@ -922,11 +986,9 @@ export default function CustomerProfilePage() {
                   type="text"
                   value={newAddressNeighborhood}
                   onChange={(e) => setNewAddressNeighborhood(e.target.value)}
-                  placeholder="Ex: Bastos, Mvan, Nlongkak..."
                   className="w-full bg-[#f2f4f2] border-none rounded-lg p-3 text-[#191c1b] focus:ring-2 focus:ring-[#00503a]/20 transition-all"
                 />
               </div>
-
               <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">
                   Rue / Avenue *
@@ -935,11 +997,9 @@ export default function CustomerProfilePage() {
                   type="text"
                   value={newAddressStreet}
                   onChange={(e) => setNewAddressStreet(e.target.value)}
-                  placeholder="Ex: Rue de l'Ambassade"
                   className="w-full bg-[#f2f4f2] border-none rounded-lg p-3 text-[#191c1b] focus:ring-2 focus:ring-[#00503a]/20 transition-all"
                 />
               </div>
-
               <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">
                   Ville
@@ -951,20 +1011,17 @@ export default function CustomerProfilePage() {
                   className="w-full bg-[#f2f4f2] border-none rounded-lg p-3 text-[#191c1b] focus:ring-2 focus:ring-[#00503a]/20 transition-all"
                 />
               </div>
-
               <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">
                   Instructions supplémentaires
                 </label>
                 <textarea
-                  value={newAddressInstructions}
-                  onChange={(e) => setNewAddressInstructions(e.target.value)}
-                  placeholder="Ex: Porte verte, 2ème étage..."
+                  value={newAddressLandmark}
+                  onChange={(e) => setNewAddressLandmark(e.target.value)}
                   rows={3}
                   className="w-full bg-[#f2f4f2] border-none rounded-lg p-3 text-[#191c1b] focus:ring-2 focus:ring-[#00503a]/20 transition-all"
                 />
               </div>
-
               <div className="flex items-center gap-3">
                 <input
                   type="checkbox"
@@ -994,6 +1051,74 @@ export default function CustomerProfilePage() {
                 className="flex-1 py-3 bg-[#00503a] text-white font-bold rounded-lg hover:bg-[#006a4e] transition-all disabled:opacity-50"
               >
                 {savingAddress ? "MISE À JOUR..." : "ENREGISTRER"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Password Change Modal */}
+      {showPasswordModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full">
+            <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+              <h3 className="text-xl font-bold text-[#191c1b]">
+                Changer le mot de passe
+              </h3>
+              <button
+                onClick={() => setShowPasswordModal(false)}
+                className="p-2 hover:bg-slate-100 rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">
+                  Mot de passe actuel
+                </label>
+                <input
+                  type="password"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  className="w-full bg-[#f2f4f2] border-none rounded-lg p-3 text-[#191c1b] focus:ring-2 focus:ring-[#00503a]/20 transition-all"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">
+                  Nouveau mot de passe
+                </label>
+                <input
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  className="w-full bg-[#f2f4f2] border-none rounded-lg p-3 text-[#191c1b] focus:ring-2 focus:ring-[#00503a]/20 transition-all"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">
+                  Confirmer le nouveau mot de passe
+                </label>
+                <input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="w-full bg-[#f2f4f2] border-none rounded-lg p-3 text-[#191c1b] focus:ring-2 focus:ring-[#00503a]/20 transition-all"
+                />
+              </div>
+            </div>
+            <div className="p-6 border-t border-slate-100 flex gap-4">
+              <button
+                onClick={() => setShowPasswordModal(false)}
+                className="flex-1 py-3 bg-[#f2f4f2] text-[#191c1b] font-bold rounded-lg hover:bg-[#e7e9e6] transition-all"
+              >
+                ANNULER
+              </button>
+              <button
+                onClick={handleChangePassword}
+                className="flex-1 py-3 bg-[#00503a] text-white font-bold rounded-lg hover:bg-[#006a4e] transition-all"
+              >
+                CONFIRMER
               </button>
             </div>
           </div>
