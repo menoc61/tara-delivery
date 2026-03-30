@@ -2,12 +2,14 @@ import bcrypt from "bcryptjs";
 import { v4 as uuidv4 } from "uuid";
 import { prisma } from "../../config/database";
 import { generateTokenPair, verifyRefreshToken } from "../../config/jwt";
-import { AppError, ConflictError, UnauthorizedError } from "../../middleware/error.middleware";
-import { emailService } from "../notifications/email.service";
 import {
-  RegisterInput,
-  LoginInput,
-} from "@tara/zod-schemas";
+  AppError,
+  ConflictError,
+  UnauthorizedError,
+} from "../../middleware/error.middleware";
+import { emailService } from "../notifications/email.service";
+import { notificationService } from "../notifications/notification.service";
+import { RegisterInput, LoginInput } from "@tara/zod-schemas";
 import { UserRole } from "@tara/types";
 
 export const authService = {
@@ -29,8 +31,9 @@ export const authService = {
       },
     });
 
-    // Send welcome email (non-blocking)
+    // Send welcome email and notification (non-blocking)
     emailService.sendWelcomeEmail(user.email, user.name).catch(() => {});
+    notificationService.notifyWelcome(user.id, user.name).catch(() => {});
 
     const tokens = generateTokenPair(user);
     return { user: sanitizeUser(user), tokens };
@@ -86,6 +89,7 @@ export const authService = {
         },
       });
       emailService.sendWelcomeEmail(user.email, user.name).catch(() => {});
+      notificationService.notifyWelcome(user.id, user.name).catch(() => {});
     } else if (!user.googleId) {
       user = await prisma.user.update({
         where: { id: user.id },
@@ -162,7 +166,9 @@ export const authService = {
     const user = await prisma.user.findUnique({
       where: { id: userId },
       include: {
-        rider: { select: { id: true, status: true, vehicleType: true, rating: true } },
+        rider: {
+          select: { id: true, status: true, vehicleType: true, rating: true },
+        },
         admin: { select: { id: true, permissions: true } },
       },
     });
@@ -172,6 +178,8 @@ export const authService = {
 };
 
 const sanitizeUser = (user: Record<string, unknown>) => {
-  const { passwordHash: _, ...safe } = user as { passwordHash?: string } & Record<string, unknown>;
+  const { passwordHash: _, ...safe } = user as {
+    passwordHash?: string;
+  } & Record<string, unknown>;
   return safe;
 };

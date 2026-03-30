@@ -65,16 +65,38 @@ enum VehicleType {
 }
 
 enum NotificationType {
+  // Order events
   ORDER_CREATED
   ORDER_CONFIRMED
   ORDER_ASSIGNED
   ORDER_PICKED_UP
   ORDER_DELIVERED
   ORDER_CANCELLED
+  ORDER_FAILED
+
+  // Payment events
   PAYMENT_SUCCESS
   PAYMENT_FAILED
+
+  // Rider events
   RIDER_ASSIGNED
   NEW_ORDER_ALERT
+
+  // User events
+  WELCOME
+  RATING_REMINDER
+
+  // Promotion events
+  PROMOTION
+
+  // Chat events
+  CHAT_MESSAGE
+
+  // Admin/system events
+  ADMIN_ANNOUNCEMENT
+  MAINTENANCE
+  DELIVERY_IN_PROGRESS
+  SYSTEM
 }
 
 enum TransactionType {
@@ -97,6 +119,13 @@ model User {
   isActive      Boolean   @default(true)
   pushSubscription String?
   lastLoginAt   DateTime?
+
+  // Notification preferences
+  smsAlerts     Boolean   @default(true)
+  emailInvoices Boolean   @default(true)
+  promotions    Boolean   @default(true)
+  pushEnabled   Boolean   @default(true)
+
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
@@ -282,21 +311,36 @@ model Transaction {
   @@index([reference])
 }
 
+enum NotificationPriority {
+  LOW
+  NORMAL
+  HIGH
+}
+
 model Notification {
-  id        String           @id @default(uuid())
-  userId    String
-  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  type      NotificationType
-  title     String
-  body      String
-  data      Json?
-  isRead    Boolean          @default(false)
-  createdAt DateTime         @default(now())
+  id          String               @id @default(uuid())
+  userId      String
+  user        User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type        NotificationType
+  title       String
+  body        String
+  data        Json?
+  isRead      Boolean              @default(false)
+  isDeletable Boolean              @default(true)
+  priority    NotificationPriority @default(NORMAL)
+  imageUrl    String?
+  actionUrl   String?
+  category    String?
+  expiresAt   DateTime?
+  createdAt   DateTime             @default(now())
 
   @@map("notifications")
   @@index([userId])
   @@index([isRead])
   @@index([createdAt])
+  @@index([expiresAt])
+  @@index([type])
+  @@index([category])
 }
 
 model Rating {

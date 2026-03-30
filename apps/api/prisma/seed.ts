@@ -4,6 +4,7 @@ import {
   RiderStatus,
   VehicleType,
   NotificationType,
+  NotificationPriority,
   OrderStatus,
   OrderType,
   PaymentMethod,
@@ -291,29 +292,183 @@ async function main() {
   }
   console.log("✅ Payments created");
 
-  // Create notifications
+  // Create comprehensive notifications for all types
   const allUsers = await prisma.user.findMany({ take: 10 });
+  const now = new Date();
+
+  const notificationTemplates: Array<{
+    type: NotificationType;
+    title: string;
+    body: string;
+    isDeletable: boolean;
+    priority: NotificationPriority;
+    category: string;
+    actionUrl?: string;
+    data?: object;
+  }> = [
+    // Welcome notification
+    {
+      type: NotificationType.WELCOME,
+      title: "Bienvenue sur TARA DELIVERY!",
+      body: "Bonjour! Bienvenue sur la plateforme de livraison la plus fiable de Yaoundé. Créez votre première livraison et profitez de nos services.",
+      isDeletable: true,
+      priority: NotificationPriority.NORMAL,
+      category: "system",
+      actionUrl: "/customer/new-order",
+    },
+    // Order notifications
+    {
+      type: NotificationType.ORDER_CONFIRMED,
+      title: "Commande confirmée",
+      body: "Votre commande TD2603300001 est confirmée et en cours d'attribution.",
+      isDeletable: true,
+      priority: NotificationPriority.NORMAL,
+      category: "orders",
+      actionUrl: "/customer/orders/1",
+      data: { orderId: "1" },
+    },
+    {
+      type: NotificationType.ORDER_ASSIGNED,
+      title: "Livreur assigné",
+      body: "Moussa Diallo a été assigné à votre commande TD2603300001.",
+      isDeletable: true,
+      priority: NotificationPriority.NORMAL,
+      category: "orders",
+      actionUrl: "/customer/orders/1",
+    },
+    {
+      type: NotificationType.ORDER_PICKED_UP,
+      title: "Colis récupéré",
+      body: "Votre colis pour la commande TD2603300001 a été récupéré par le livreur.",
+      isDeletable: true,
+      priority: NotificationPriority.NORMAL,
+      category: "orders",
+      actionUrl: "/customer/orders/1",
+    },
+    {
+      type: NotificationType.DELIVERY_IN_PROGRESS,
+      title: "Colis en cours de livraison",
+      body: "Moussa Diallo est en route vers votre adresse. Arrivée estimée: 15 minutes.",
+      isDeletable: true,
+      priority: NotificationPriority.HIGH,
+      category: "orders",
+      actionUrl: "/customer/orders/track",
+      data: { orderId: "1", riderName: "Moussa Diallo", eta: "15 min" },
+    },
+    {
+      type: NotificationType.ORDER_DELIVERED,
+      title: "Livraison effectuée!",
+      body: "Votre commande TD2603300001 a été livrée avec succès. Merci!",
+      isDeletable: true,
+      priority: NotificationPriority.HIGH,
+      category: "orders",
+      actionUrl: "/customer/orders",
+    },
+    {
+      type: NotificationType.RATING_REMINDER,
+      title: "Évaluez votre livraison",
+      body: "Comment s'est passée votre livraison TD2603300001? Votre avis nous aide à améliorer le service.",
+      isDeletable: true,
+      priority: NotificationPriority.LOW,
+      category: "orders",
+      actionUrl: "/customer/orders/1?tab=rating",
+    },
+    // Payment notifications
+    {
+      type: NotificationType.PAYMENT_SUCCESS,
+      title: "Paiement confirmé",
+      body: "Paiement de 2 500 XAF reçu pour la commande TD2603300001.",
+      isDeletable: true,
+      priority: NotificationPriority.NORMAL,
+      category: "payments",
+      actionUrl: "/customer/orders/1",
+    },
+    {
+      type: NotificationType.PAYMENT_FAILED,
+      title: "Échec du paiement",
+      body: "Le paiement pour la commande TD2603300001 a échoué. Veuillez réessayer.",
+      isDeletable: true,
+      priority: NotificationPriority.HIGH,
+      category: "payments",
+      actionUrl: "/customer/orders/1",
+    },
+    // Promotion
+    {
+      type: NotificationType.PROMOTION,
+      title: "Promo Week-end -20% sur toutes les livraisons!",
+      body: "Profitez de 20% de réduction sur toutes les livraisons ce week-end. Utilisez le code WEEKEND20.",
+      isDeletable: true,
+      priority: NotificationPriority.NORMAL,
+      category: "promotions",
+      actionUrl: "/customer/pricing",
+      data: { code: "WEEKEND20", discount: 20 },
+    },
+    // Chat message
+    {
+      type: NotificationType.CHAT_MESSAGE,
+      title: "Nouveau message de Moussa Diallo",
+      body: "Bonjour, je suis à 5 minutes de votre adresse. Pouvez-vous sortir?",
+      isDeletable: true,
+      priority: NotificationPriority.NORMAL,
+      category: "chat",
+      actionUrl: "/customer/messages/1",
+      data: { conversationId: "1", senderName: "Moussa Diallo" },
+    },
+    // Admin announcement
+    {
+      type: NotificationType.ADMIN_ANNOUNCEMENT,
+      title: "Nouvelle fonctionnalité: Suivi en temps réel",
+      body: "Désormais, vous pouvez suivre votre livreur en temps réel sur la carte! Cette fonctionnalité est disponible pour toutes les livraisons.",
+      isDeletable: true,
+      priority: NotificationPriority.HIGH,
+      category: "admin",
+      actionUrl: "/customer/orders/track",
+    },
+    // Maintenance
+    {
+      type: NotificationType.MAINTENANCE,
+      title: "Maintenance planifiée",
+      body: "Une maintenance est prévue le dimanche 31 mars de 02h00 à 05h00. Le service sera temporairement indisponible.",
+      isDeletable: false,
+      priority: NotificationPriority.HIGH,
+      category: "system",
+    },
+    // System notification
+    {
+      type: NotificationType.SYSTEM,
+      title: "Mise à jour de l'application",
+      body: "TARA DELIVERY a été mis à jour avec de nouvelles fonctionnalités et améliorations de performance.",
+      isDeletable: true,
+      priority: NotificationPriority.NORMAL,
+      category: "system",
+    },
+  ];
+
   for (const user of allUsers) {
-    await prisma.notification.createMany({
-      data: [
-        {
+    for (let i = 0; i < notificationTemplates.length; i++) {
+      const template = notificationTemplates[i];
+      const createdAt = new Date(now.getTime() - (i + 1) * 3600000); // Stagger by hours
+
+      await prisma.notification.create({
+        data: {
           userId: user.id,
-          type: NotificationType.ORDER_DELIVERED,
-          title: "Commande livrée",
-          body: "Votre commande a été livrée avec succès!",
-          isRead: Math.random() > 0.5,
+          type: template.type,
+          title: template.title,
+          body: template.body,
+          isRead: Math.random() > 0.6,
+          isDeletable: template.isDeletable,
+          priority: template.priority,
+          category: template.category,
+          actionUrl: template.actionUrl,
+          data: template.data || undefined,
+          createdAt,
         },
-        {
-          userId: user.id,
-          type: NotificationType.NEW_ORDER_ALERT,
-          title: "Nouvelle commande disponible",
-          body: "De nouvelles demandes de livraison sont disponibles.",
-          isRead: Math.random() > 0.7,
-        },
-      ],
-    });
+      });
+    }
   }
-  console.log("✅ Notifications created");
+  console.log(
+    `✅ ${notificationTemplates.length * allUsers.length} notifications created (${notificationTemplates.length} types x ${allUsers.length} users)`,
+  );
 
   // Create ratings
   const completedOrders = await prisma.order.findMany({

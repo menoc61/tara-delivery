@@ -99,14 +99,25 @@ self.addEventListener("notificationclick", (event) => {
   let url = "/";
 
   // Navigate based on notification type
-  if (notificationData?.orderId) {
+  if (notificationData?.actionUrl) {
+    url = notificationData.actionUrl;
+  } else if (notificationData?.orderId) {
     url = `/customer/orders/${notificationData.orderId}`;
-  } else if (notificationData?.type === "new-order") {
+  } else if (
+    notificationData?.type === "CHAT_MESSAGE" &&
+    notificationData?.conversationId
+  ) {
+    url = `/customer/messages/${notificationData.conversationId}`;
+  } else if (notificationData?.type === "NEW_ORDER_ALERT") {
     url = "/rider/dashboard";
-  } else if (notificationData?.type === "payment") {
+  } else if (notificationData?.type?.includes("PAYMENT")) {
     url = "/customer/payments";
-  } else if (notificationData?.type === "delivery") {
+  } else if (notificationData?.type?.includes("ORDER")) {
+    url = "/customer/orders";
+  } else if (notificationData?.type === "DELIVERY_IN_PROGRESS") {
     url = "/customer/orders/track";
+  } else if (notificationData?.type === "PROMOTION") {
+    url = "/customer/pricing";
   }
 
   event.waitUntil(

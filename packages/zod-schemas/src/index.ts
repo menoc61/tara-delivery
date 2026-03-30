@@ -1,10 +1,5 @@
 import { z } from "zod";
-import {
-  OrderType,
-  PaymentMethod,
-  VehicleType,
-  UserRole,
-} from "@tara/types";
+import { OrderType, PaymentMethod, VehicleType, UserRole } from "@tara/types";
 
 // ── Common ────────────────────────────────────────────────
 
@@ -89,11 +84,7 @@ export const updateProfileSchema = z.object({
 export const updatePasswordSchema = z
   .object({
     currentPassword: z.string().min(1),
-    newPassword: z
-      .string()
-      .min(8)
-      .regex(/[A-Z]/)
-      .regex(/[0-9]/),
+    newPassword: z.string().min(8).regex(/[A-Z]/).regex(/[0-9]/),
     confirmPassword: z.string(),
   })
   .refine((d) => d.newPassword === d.confirmPassword, {
@@ -173,19 +164,21 @@ export const riderFiltersSchema = paginationSchema.extend({
 
 // ── Payment Schemas ───────────────────────────────────────
 
-export const initiatePaymentSchema = z.object({
-  orderId: z.string().uuid(),
-  method: z.nativeEnum(PaymentMethod),
-  phoneNumber: phoneSchema.optional(),
-}).refine(
-  (data) =>
-    data.method === PaymentMethod.CASH_ON_DELIVERY ||
-    data.phoneNumber !== undefined,
-  {
-    message: "Phone number is required for mobile money payments",
-    path: ["phoneNumber"],
-  }
-);
+export const initiatePaymentSchema = z
+  .object({
+    orderId: z.string().uuid(),
+    method: z.nativeEnum(PaymentMethod),
+    phoneNumber: phoneSchema.optional(),
+  })
+  .refine(
+    (data) =>
+      data.method === PaymentMethod.CASH_ON_DELIVERY ||
+      data.phoneNumber !== undefined,
+    {
+      message: "Phone number is required for mobile money payments",
+      path: ["phoneNumber"],
+    },
+  );
 
 export const momoWebhookSchema = z.object({
   financialTransactionId: z.string().optional(),
@@ -254,7 +247,41 @@ export const sendNotificationSchema = z.object({
   userId: z.string().uuid(),
   title: z.string().min(1).max(100),
   body: z.string().min(1).max(500),
+  type: z.string().optional(),
   data: z.record(z.string()).optional(),
+});
+
+export const createNotificationSchema = z.object({
+  userId: z.string().uuid(),
+  type: z.string().min(1),
+  title: z.string().min(1).max(100),
+  body: z.string().min(1).max(500),
+  data: z.record(z.unknown()).optional(),
+  priority: z.enum(["LOW", "NORMAL", "HIGH"]).default("NORMAL"),
+  imageUrl: z.string().url().optional().nullable(),
+  actionUrl: z.string().max(500).optional().nullable(),
+  category: z.string().max(50).optional().nullable(),
+  expiresAt: z.coerce.date().optional().nullable(),
+});
+
+export const sendBulkNotificationSchema = z.object({
+  userIds: z.array(z.string().uuid()).min(1).max(1000),
+  type: z.string().min(1),
+  title: z.string().min(1).max(100),
+  body: z.string().min(1).max(500),
+  data: z.record(z.unknown()).optional(),
+  priority: z.enum(["LOW", "NORMAL", "HIGH"]).default("NORMAL"),
+  imageUrl: z.string().url().optional().nullable(),
+  actionUrl: z.string().max(500).optional().nullable(),
+  category: z.string().max(50).optional().nullable(),
+  expiresAt: z.coerce.date().optional().nullable(),
+});
+
+export const notificationFiltersSchema = paginationSchema.extend({
+  type: z.string().optional(),
+  isRead: z.coerce.boolean().optional(),
+  category: z.string().optional(),
+  priority: z.enum(["LOW", "NORMAL", "HIGH"]).optional(),
 });
 
 // ── Inferred Types ────────────────────────────────────────

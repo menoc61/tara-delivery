@@ -18,11 +18,13 @@ import {
 } from "lucide-react";
 import { useAuthStore } from "@/store/auth.store";
 import { usePWAInstall } from "@/hooks/usePWAInstall";
+import { useNotificationStore } from "@/store/notification.store";
 import { authApi } from "@/lib/api-client";
 import toast from "react-hot-toast";
 
 export function MobileNav() {
   const pathname = usePathname();
+  const { unreadCount } = useNotificationStore();
 
   const isActive = (path: string) => {
     if (path === "/customer") return pathname === "/customer";
@@ -33,42 +35,49 @@ export function MobileNav() {
   const inactiveClass = "text-slate-400";
 
   return (
-    <div className="md:hidden fixed bottom-0 w-full bg-white border-t border-slate-100 px-6 py-3 flex justify-between items-center z-50">
+    <div className="md:hidden fixed bottom-0 w-full bg-white border-t border-slate-100 px-4 py-2 flex justify-between items-center z-50">
       <Link
         href="/customer"
-        className={`flex flex-col items-center gap-1 ${isActive("/customer") && pathname === "/customer" ? activeClass : inactiveClass}`}
+        className={`flex flex-col items-center gap-0.5 px-3 py-1 ${isActive("/customer") && pathname === "/customer" ? activeClass : inactiveClass}`}
       >
-        <span className="text-xl">☰</span>
-        <span className="text-[10px] font-bold">Accueil</span>
+        <span className="text-lg">☰</span>
+        <span className="text-[9px] font-bold">Accueil</span>
       </Link>
       <Link
         href="/customer/orders"
-        className={`flex flex-col items-center gap-1 ${isActive("/customer/orders") ? activeClass : inactiveClass}`}
+        className={`flex flex-col items-center gap-0.5 px-3 py-1 ${isActive("/customer/orders") ? activeClass : inactiveClass}`}
       >
         <Package className="w-5 h-5" />
-        <span className="text-[10px] font-bold">Envois</span>
+        <span className="text-[9px] font-bold">Envois</span>
       </Link>
-      <div className="relative -top-8">
+      <div className="relative -top-6">
         <Link
           href="/customer/new-order"
-          className="w-14 h-14 bg-[#feb700] rounded-full shadow-lg flex items-center justify-center text-[#271900]"
+          className="w-12 h-12 bg-[#feb700] rounded-full shadow-lg flex items-center justify-center text-[#271900] active:scale-95 transition-transform"
         >
-          <Plus className="text-3xl" />
+          <Plus className="text-2xl" />
         </Link>
       </div>
       <Link
-        href="/customer/payments"
-        className={`flex flex-col items-center gap-1 ${isActive("/customer/payments") ? activeClass : inactiveClass}`}
+        href="/customer/notifications"
+        className={`relative flex flex-col items-center gap-0.5 px-3 py-1 ${isActive("/customer/notifications") ? activeClass : inactiveClass}`}
       >
-        <Wallet className="w-5 h-5" />
-        <span className="text-[10px] font-bold">Portefeuille</span>
+        <div className="relative">
+          <Bell className="w-5 h-5" />
+          {unreadCount > 0 && (
+            <span className="absolute -top-1 -right-1 min-w-[14px] h-[14px] flex items-center justify-center bg-[#ba1a1a] text-white text-[8px] font-bold rounded-full px-0.5">
+              {unreadCount > 9 ? "9+" : unreadCount}
+            </span>
+          )}
+        </div>
+        <span className="text-[9px] font-bold">Alertes</span>
       </Link>
       <Link
         href="/customer/profile"
-        className={`flex flex-col items-center gap-1 ${isActive("/customer/profile") ? activeClass : inactiveClass}`}
+        className={`flex flex-col items-center gap-0.5 px-3 py-1 ${isActive("/customer/profile") ? activeClass : inactiveClass}`}
       >
         <User className="w-5 h-5" />
-        <span className="text-[10px] font-bold">Profil</span>
+        <span className="text-[9px] font-bold">Profil</span>
       </Link>
     </div>
   );
@@ -148,6 +157,14 @@ export function Header({ title }: { title?: string }) {
   const modalRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const { isInstallable, isInstalled, installApp } = usePWAInstall();
+  const { unreadCount, fetchUnreadCount } = useNotificationStore();
+
+  // Fetch unread count on mount and periodically
+  useEffect(() => {
+    fetchUnreadCount();
+    const interval = setInterval(fetchUnreadCount, 30000); // Every 30 seconds
+    return () => clearInterval(interval);
+  }, [fetchUnreadCount]);
 
   const handleLogout = async () => {
     try {
@@ -213,9 +230,14 @@ export function Header({ title }: { title?: string }) {
         <div className="flex items-center gap-4">
           <Link
             href="/customer/notifications"
-            className="p-2 hover:bg-slate-50 rounded-lg transition-all text-[#00503a] font-bold border-b-2 border-[#00503a] pb-1"
+            className="relative p-2 hover:bg-slate-50 rounded-lg transition-all text-[#00503a] font-bold border-b-2 border-[#00503a] pb-1"
           >
             <Bell className="w-5 h-5" />
+            {unreadCount > 0 && (
+              <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] flex items-center justify-center bg-[#ba1a1a] text-white text-[10px] font-bold rounded-full px-1 animate-pulse">
+                {unreadCount > 99 ? "99+" : unreadCount}
+              </span>
+            )}
           </Link>
           <div className="relative">
             <button

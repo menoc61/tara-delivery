@@ -147,6 +147,7 @@ export const usersApi = {
     smsAlerts: boolean;
     emailInvoices: boolean;
     promotions: boolean;
+    pushEnabled?: boolean;
   }) => apiClient.patch("/users/me/preferences", data),
   updatePaymentMethod: (defaultPaymentMethod: string) =>
     apiClient.patch("/users/me/payment-method", { defaultPaymentMethod }),
@@ -162,12 +163,21 @@ export const usersApi = {
 };
 
 export const notificationsApi = {
-  getAll: (params?: unknown) => apiClient.get("/notifications", { params }),
+  getAll: (params?: {
+    page?: number;
+    limit?: number;
+    type?: string;
+    isRead?: boolean;
+    category?: string;
+    priority?: string;
+  }) => apiClient.get("/notifications", { params }),
   getUnreadCount: () => apiClient.get("/notifications/unread-count"),
   markRead: (id: string) => apiClient.patch(`/notifications/${id}/read`),
   markAllRead: () => apiClient.patch("/notifications/mark-all-read"),
-  updateFcmToken: (token: string) =>
-    apiClient.post("/notifications/fcm-token", { token }),
+  delete: (id: string) => apiClient.delete(`/notifications/${id}`),
+  subscribe: (token: string) =>
+    apiClient.post("/notifications/subscribe", { token }),
+  unsubscribe: () => apiClient.post("/notifications/unsubscribe"),
 };
 
 export const adminApi = {

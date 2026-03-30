@@ -81,12 +81,10 @@ router.post("/me/change-password", async (req: Request, res: Response) => {
     where: { id: authReq.user!.id },
   });
   if (!user?.passwordHash)
-    return res
-      .status(400)
-      .json({
-        success: false,
-        message: "Impossible de changer le mot de passe",
-      });
+    return res.status(400).json({
+      success: false,
+      message: "Impossible de changer le mot de passe",
+    });
   const isValid = await bcrypt.compare(currentPassword, user.passwordHash);
   if (!isValid)
     return res
@@ -173,7 +171,21 @@ router.post("/reset-password", async (req: Request, res: Response) => {
 
 router.patch("/me/preferences", async (req: Request, res: Response) => {
   const authReq = req as AuthRequest;
-  sendSuccess(res, null, "Préférences mises à jour");
+  const { smsAlerts, emailInvoices, promotions, pushEnabled } = req.body;
+
+  const preferences: Record<string, boolean> = {};
+  if (typeof smsAlerts === "boolean") preferences.smsAlerts = smsAlerts;
+  if (typeof emailInvoices === "boolean")
+    preferences.emailInvoices = emailInvoices;
+  if (typeof promotions === "boolean") preferences.promotions = promotions;
+  if (typeof pushEnabled === "boolean") preferences.pushEnabled = pushEnabled;
+
+  await prisma.user.update({
+    where: { id: authReq.user!.id },
+    data: preferences,
+  });
+
+  sendSuccess(res, preferences, "Préférences mises à jour");
 });
 
 router.patch("/me/payment-method", async (req: Request, res: Response) => {

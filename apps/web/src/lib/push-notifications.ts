@@ -4,15 +4,20 @@ import { useEffect, useState, useCallback } from "react";
 import { notificationsApi } from "@/lib/api-client";
 import toast from "react-hot-toast";
 
-const VAPID_PUBLIC_KEY =
-  "BBqZsjJuNEDxIcN-9a3WYhZkl3RoMhq4UrxEqkqgmGQLBiAeOinyzizHqgStyVA4Pv4esovun3dkl2SfuU1GLJc";
+const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!;
 
 export function usePushNotifications() {
   const [subscription, setSubscription] = useState<string | null>(null);
   const [isSupported, setIsSupported] = useState(false);
+  const [permission, setPermission] =
+    useState<NotificationPermission>("default");
 
   useEffect(() => {
-    setIsSupported("serviceWorker" in navigator && "PushManager" in window);
+    const supported = "serviceWorker" in navigator && "PushManager" in window;
+    setIsSupported(supported);
+    if (supported && "Notification" in window) {
+      setPermission(Notification.permission);
+    }
   }, []);
 
   const subscribe = useCallback(async () => {
@@ -28,7 +33,7 @@ export function usePushNotifications() {
       if (existingSub) {
         const subJson = JSON.stringify(existingSub);
         setSubscription(subJson);
-        await notificationsApi.updateFcmToken(subJson);
+        await notificationsApi.subscribe(subJson);
         toast.success("Notifications activées");
         return;
       }
@@ -40,7 +45,8 @@ export function usePushNotifications() {
 
       const subJson = JSON.stringify(newSub);
       setSubscription(subJson);
-      await notificationsApi.updateFcmToken(subJson);
+      await notificationsApi.subscribe(subJson);
+      setPermission("granted");
       toast.success("Notifications activées!");
     } catch (err) {
       console.error("Push subscription error:", err);
@@ -55,6 +61,7 @@ export function usePushNotifications() {
       if (existingSub) {
         await existingSub.unsubscribe();
         setSubscription(null);
+        await notificationsApi.unsubscribe();
         toast.success("Notifications désactivées");
       }
     } catch (err) {
@@ -62,7 +69,32 @@ export function usePushNotifications() {
     }
   }, []);
 
-  return { subscription, isSupported, subscribe, unsubscribe };
+  const requestPermission = useCallback(async () => {
+    if (!("Notification" in window)) {
+      toast.error("Notifications non supportées");
+      return false;
+    }
+
+    const result = await Notification.requestPermission();
+    setPermission(result);
+
+    if (result === "granted") {
+      await subscribe();
+      return true;
+    } else {
+      toast.error("Permission de notification refusée");
+      return false;
+    }
+  }, [subscribe]);
+
+  return {
+    subscription,
+    isSupported,
+    permission,
+    subscribe,
+    unsubscribe,
+    requestPermission,
+  };
 }
 
 function urlBase64ToUint8Array(base64String: string): BufferSource {
@@ -92,7 +124,7 @@ export async function initPushNotifications() {
 
     const existingSub = await registration.pushManager.getSubscription();
     if (existingSub) {
-      await notificationsApi.updateFcmToken(JSON.stringify(existingSub));
+      await notificationsApi.subscribe(JSON.stringify(existingSub));
     }
   } catch (err) {
     console.error("Service Worker registration failed:", err);

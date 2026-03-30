@@ -49,16 +49,44 @@ export enum RiderStatus {
 }
 
 export enum NotificationType {
+  // Order events
   ORDER_CREATED = "ORDER_CREATED",
   ORDER_CONFIRMED = "ORDER_CONFIRMED",
   ORDER_ASSIGNED = "ORDER_ASSIGNED",
   ORDER_PICKED_UP = "ORDER_PICKED_UP",
   ORDER_DELIVERED = "ORDER_DELIVERED",
   ORDER_CANCELLED = "ORDER_CANCELLED",
+  ORDER_FAILED = "ORDER_FAILED",
+
+  // Payment events
   PAYMENT_SUCCESS = "PAYMENT_SUCCESS",
   PAYMENT_FAILED = "PAYMENT_FAILED",
+
+  // Rider events
   RIDER_ASSIGNED = "RIDER_ASSIGNED",
   NEW_ORDER_ALERT = "NEW_ORDER_ALERT",
+
+  // User events
+  WELCOME = "WELCOME",
+  RATING_REMINDER = "RATING_REMINDER",
+
+  // Promotion events
+  PROMOTION = "PROMOTION",
+
+  // Chat events
+  CHAT_MESSAGE = "CHAT_MESSAGE",
+
+  // Admin/system events
+  ADMIN_ANNOUNCEMENT = "ADMIN_ANNOUNCEMENT",
+  MAINTENANCE = "MAINTENANCE",
+  DELIVERY_IN_PROGRESS = "DELIVERY_IN_PROGRESS",
+  SYSTEM = "SYSTEM",
+}
+
+export enum NotificationPriority {
+  LOW = "LOW",
+  NORMAL = "NORMAL",
+  HIGH = "HIGH",
 }
 
 export enum VehicleType {
@@ -205,7 +233,21 @@ export interface Notification {
   body: string;
   data?: Record<string, unknown>;
   isRead: boolean;
+  isDeletable: boolean;
+  priority: NotificationPriority;
+  imageUrl?: string | null;
+  actionUrl?: string | null;
+  category?: string | null;
+  expiresAt?: Date | null;
   createdAt: Date;
+}
+
+export interface NotificationCardConfig {
+  type: NotificationType;
+  icon: string;
+  color: string;
+  bgColor: string;
+  category: string;
 }
 
 // ── Real-Time / Firebase Types ─────────────────────────────

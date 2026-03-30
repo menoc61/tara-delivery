@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <rect width="512" height="512" rx="96" fill="#00503a"/>
+  <g fill="none" stroke="#ffffff" stroke-width="24" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Package body -->
+    <rect x="128" y="160" width="256" height="224" rx="16" fill="none"/>
+    <!-- Package top flap -->
+    <path d="M128 160 L256 96 L384 160" fill="none"/>
+    <!-- Vertical lines on package -->
+    <line x1="256" y1="96" x2="256" y2="384"/>
+    <!-- Horizontal line across middle -->
+    <line x1="128" y1="256" x2="384" y2="256"/>
+    <!-- Arrow for delivery -->
+    <path d="M256 200 L256 220 M256 220 L280 200 M256 220 L232 200" stroke-width="20"/>
+  </g>
+  <!-- TARA text -->
+  <text x="256" y="440" text-anchor="middle" fill="#ffffff" font-family="Arial Black, sans-serif" font-size="48" font-weight="900" letter-spacing="8">TARA</text>
+</svg>

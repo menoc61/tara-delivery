@@ -11,7 +11,8 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-const FROM = process.env.EMAIL_FROM || "TARA DELIVERY <noreply@tara-delivery.cm>";
+const FROM =
+  process.env.EMAIL_FROM || "TARA DELIVERY <noreply@tara-delivery.cm>";
 const BASE_URL = process.env.CORS_ORIGIN || "http://localhost:3000";
 
 const sendMail = async (to: string, subject: string, html: string) => {
@@ -81,9 +82,16 @@ export const emailService = {
     return sendMail(to, "Bienvenue sur TARA DELIVERY 📦", html);
   },
 
-  async sendOrderConfirmation(to: string, name: string, order: {
-    orderNumber: string; type: string; deliveryFee: number; estimatedDuration?: number | null;
-  }) {
+  async sendOrderConfirmation(
+    to: string,
+    name: string,
+    order: {
+      orderNumber: string;
+      type: string;
+      deliveryFee: number;
+      estimatedDuration?: number | null;
+    },
+  ) {
     const html = baseTemplate(`
       <h2>Commande confirmée ✅</h2>
       <p>Bonjour ${name}, votre commande a été reçue et est en cours de traitement.</p>
@@ -108,9 +116,15 @@ export const emailService = {
     return sendMail(to, `Commande ${orderNumber} livrée avec succès!`, html);
   },
 
-  async sendPaymentConfirmation(to: string, name: string, data: {
-    orderNumber: string; amount: number; method: string;
-  }) {
+  async sendPaymentConfirmation(
+    to: string,
+    name: string,
+    data: {
+      orderNumber: string;
+      amount: number;
+      method: string;
+    },
+  ) {
     const html = baseTemplate(`
       <h2>Paiement reçu ✅</h2>
       <p>Bonjour ${name}, votre paiement a été confirmé.</p>
@@ -132,7 +146,11 @@ export const emailService = {
       <a href="${resetUrl}" class="btn">Réinitialiser mon mot de passe</a>
       <p style="color:#9CA3AF;font-size:13px;margin-top:20px;">Si vous n'êtes pas à l'origine de cette demande, ignorez cet email.</p>
     `);
-    return sendMail(to, "Réinitialisation de votre mot de passe TARA DELIVERY", html);
+    return sendMail(
+      to,
+      "Réinitialisation de votre mot de passe TARA DELIVERY",
+      html,
+    );
   },
 
   async sendRiderNewOrderAlert(to: string, name: string, orderNumber: string) {
@@ -142,5 +160,71 @@ export const emailService = {
       <a href="${BASE_URL}/rider" class="btn">Voir la commande →</a>
     `);
     return sendMail(to, `Nouvelle commande ${orderNumber}`, html);
+  },
+
+  async sendMaintenanceNotification(
+    to: string,
+    name: string,
+    data: {
+      scheduledStart: Date;
+      scheduledEnd: Date;
+      reason?: string;
+    },
+  ) {
+    const startTime = data.scheduledStart.toLocaleString("fr-CM", {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+    const endTime = data.scheduledEnd.toLocaleString("fr-CM", {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+    const duration = Math.round(
+      (data.scheduledEnd.getTime() - data.scheduledStart.getTime()) /
+        (1000 * 60),
+    );
+
+    const html = baseTemplate(`
+      <div style="background:#FEF3C7; border-left:4px solid #F59E0B; padding:16px; border-radius:0 8px 8px 0; margin-bottom:24px;">
+        <p style="color:#92400E; font-weight:700; margin:0;">⚠️ Maintenance planifiée</p>
+      </div>
+      <h2>Maintenance programmée</h2>
+      <p>Bonjour ${name}, nous vous informons qu'une maintenance est planifiée sur notre plateforme.</p>
+      <div class="info-box">
+        <p><strong>Début:</strong> ${startTime}</p>
+        <p><strong>Fin estimée:</strong> ${endTime}</p>
+        <p><strong>Durée estimée:</strong> ${duration} minutes</p>
+        ${data.reason ? `<p><strong>Motif:</strong> ${data.reason}</p>` : ""}
+      </div>
+      <p>Pendant cette période, le service sera temporairement indisponible. Nous vous recommandons de:</p>
+      <ul style="color:#555; line-height:1.8; padding-left:20px;">
+        <li>Planifier vos livraisons avant ou après la maintenance</li>
+        <li>Sauvegarder vos commandes en cours</li>
+        <li>Contacter le support pour toute urgence</li>
+      </ul>
+      <p>Nous nous excusons pour la gêne occasionnée et vous remercions de votre compréhension.</p>
+    `);
+    return sendMail(to, "Maintenance planifiée - TARA DELIVERY", html);
+  },
+
+  async sendRatingReminder(to: string, name: string, orderNumber: string) {
+    const html = baseTemplate(`
+      <h2>Votre avis compte pour nous! ⭐</h2>
+      <p>Bonjour ${name}, nous espérons que votre livraison <strong>${orderNumber}</strong> s'est bien passée.</p>
+      <p>Votre évaluation nous aide à améliorer notre service et à récompenser les meilleurs livreurs.</p>
+      <a href="${BASE_URL}/customer/orders" class="btn">Évaluer maintenant ⭐</a>
+      <p style="color:#9CA3AF;font-size:13px;margin-top:20px;">Cela ne prend que quelques secondes!</p>
+    `);
+    return sendMail(
+      to,
+      `Comment s'est passée votre livraison ${orderNumber}?`,
+      html,
+    );
   },
 };
