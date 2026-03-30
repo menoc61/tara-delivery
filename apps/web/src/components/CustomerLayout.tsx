@@ -246,6 +246,7 @@ export function Header({ title }: { title?: string }) {
               className="h-10 w-10 rounded-full overflow-hidden bg-[#edeeec] flex items-center justify-center hover:ring-2 hover:ring-[#00503a] hover:ring-offset-2 transition-all"
             >
               {user?.avatar ? (
+                /* eslint-disable-next-line @next/next/no-img-element */
                 <img
                   src={user.avatar}
                   alt="Profile"
@@ -269,6 +270,7 @@ export function Header({ title }: { title?: string }) {
                   <div className="flex items-center gap-3">
                     <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center overflow-hidden">
                       {user?.avatar ? (
+                        /* eslint-disable-next-line @next/next/no-img-element */
                         <img
                           src={user.avatar}
                           alt="Profile"
@@ -315,7 +317,7 @@ export function Header({ title }: { title?: string }) {
                     className="flex items-center gap-3 px-4 py-3 text-slate-700 hover:bg-slate-50 rounded-xl transition-colors w-full"
                   >
                     <Download className="w-5 h-5 text-[#00503a]" />
-                    <span className="font-medium">Installer l'App</span>
+                    <span className="font-medium">Installer l&apos;App</span>
                   </button>
                 </div>
 

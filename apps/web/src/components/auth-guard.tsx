@@ -44,7 +44,7 @@ export function AuthGuard({ children, allowedRoles }: AuthGuardProps) {
         <div className="text-center">
           <Loader2 className="w-12 h-12 animate-spin text-[#00503a] mx-auto mb-4" />
           <p className="text-[#6f7a73]">
-            Vérification de l'authentification...
+            Vérification de l&apos;authentification...
           </p>
         </div>
       </div>

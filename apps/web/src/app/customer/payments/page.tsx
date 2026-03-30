@@ -10,8 +10,10 @@ import {
   ChevronRight,
   TrendingUp,
   RefreshCw,
-  Eye,
   FileText,
+  Search,
+  ChevronLeft,
+  ChevronDown,
 } from "lucide-react";
 import { useAuthStore } from "@/store/auth.store";
 import { paymentsApi } from "@/lib/api-client";
@@ -22,12 +24,11 @@ import {
   Header,
   PageFooter,
 } from "@/components/CustomerLayout";
-import { StatusBadge } from "@/components/shared/StatusBadge";
-import { FilterBar } from "@/components/shared/FilterBar";
-import { Pagination } from "@/components/shared/Pagination";
-import { StatCard } from "@/components/shared/StatCard";
-import { EmptyState } from "@/components/shared/EmptyState";
-import { TableSkeleton, StatsSkeleton } from "@/components/shared/Skeleton";
+import {
+  TableSkeleton,
+  StatsSkeleton,
+  CardSkeleton,
+} from "@/components/shared/Skeleton";
 import toast from "react-hot-toast";
 
 interface PaymentOrder {
@@ -35,11 +36,8 @@ interface PaymentOrder {
   orderNumber: string;
   type: string;
   totalAmount: number;
-  deliveryFee: number;
   deliveryStreet: string;
   deliveryNeighborhood: string;
-  pickupStreet: string;
-  pickupNeighborhood: string;
   status: string;
   createdAt: string;
 }
@@ -51,27 +49,30 @@ interface Payment {
   method: string;
   status: string;
   amount: number;
-  currency: string;
   transactionId?: string;
-  failureReason?: string;
   paidAt?: string;
   createdAt: string;
-  updatedAt: string;
 }
 
-const PAYMENT_STATUS_OPTIONS = [
-  { value: "SUCCESS", label: "Réussi" },
-  { value: "PENDING", label: "En attente" },
-  { value: "INITIATED", label: "Initié" },
-  { value: "FAILED", label: "Échoué" },
-  { value: "REFUNDED", label: "Remboursé" },
-];
+const formatCFA = (v: number) =>
+  new Intl.NumberFormat("fr-CM").format(v) + " XAF";
 
-const PAYMENT_METHOD_OPTIONS = [
-  { value: "MTN_MOMO", label: "MTN MoMo" },
-  { value: "ORANGE_MONEY", label: "Orange Money" },
-  { value: "CASH_ON_DELIVERY", label: "Espèces" },
-];
+const formatDate = (dateString: string) => {
+  const date = new Date(dateString);
+  return date.toLocaleDateString("fr-CM", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+};
+
+const formatTime = (dateString: string) => {
+  const date = new Date(dateString);
+  return date.toLocaleTimeString("fr-CM", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};
 
 const METHOD_LABELS: Record<string, string> = {
   MTN_MOMO: "MTN MoMo",
@@ -80,33 +81,78 @@ const METHOD_LABELS: Record<string, string> = {
 };
 
 const METHOD_ICONS: Record<string, React.ReactNode> = {
-  MTN_MOMO: <Smartphone className="w-5 h-5 text-yellow-500" />,
-  ORANGE_MONEY: <Smartphone className="w-5 h-5 text-orange-500" />,
-  CASH_ON_DELIVERY: <Banknote className="w-5 h-5 text-green-500" />,
+  MTN_MOMO: <Smartphone className="w-4 h-4 text-yellow-500" />,
+  ORANGE_MONEY: <Smartphone className="w-4 h-4 text-orange-500" />,
+  CASH_ON_DELIVERY: <Banknote className="w-4 h-4 text-green-500" />,
 };
 
-function formatCurrency(amount: number): string {
+const getPaymentStatusStyle = (status: string) => {
+  switch (status) {
+    case "SUCCESS":
+      return "bg-[#83d7b4] text-[#002116]";
+    case "PENDING":
+    case "INITIATED":
+      return "bg-[#feb700] text-[#271900]";
+    case "FAILED":
+      return "bg-[#ffdad6] text-[#ba1a1a]";
+    case "REFUNDED":
+      return "bg-[#92e7c3] text-[#00513b]";
+    default:
+      return "bg-[#e1e3e1] text-[#6f7a73]";
+  }
+};
+
+const getPaymentStatusLabel = (status: string) => {
+  const labels: Record<string, string> = {
+    SUCCESS: "Réussi",
+    PENDING: "En attente",
+    INITIATED: "Initié",
+    FAILED: "Échoué",
+    REFUNDED: "Remboursé",
+  };
+  return labels[status] || status;
+};
+
+// Mobile payment card
+function PaymentCard({ payment }: { payment: Payment }) {
   return (
-    new Intl.NumberFormat("fr-CM", {
-      style: "decimal",
-      minimumFractionDigits: 0,
-    }).format(amount) + " XAF"
+    <Link
+      href={`/customer/payments/${payment.id}`}
+      className="block bg-white rounded-2xl border border-slate-100 shadow-sm p-4"
+    >
+      <div className="flex items-start justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <div className="p-1.5 bg-[#9ef4d0]/20 rounded-lg">
+            {METHOD_ICONS[payment.method] || (
+              <Wallet className="w-4 h-4 text-[#00503a]" />
+            )}
+          </div>
+          <div>
+            <p className="text-sm font-medium text-[#191c1b]">
+              {METHOD_LABELS[payment.method] || payment.method}
+            </p>
+            <p className="text-xs text-[#6f7a73]">
+              {payment.order?.orderNumber || `#${payment.orderId?.slice(0, 8)}`}
+            </p>
+          </div>
+        </div>
+        <span
+          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-tight ${getPaymentStatusStyle(payment.status)}`}
+        >
+          {getPaymentStatusLabel(payment.status)}
+        </span>
+      </div>
+
+      <div className="flex items-center justify-between">
+        <p className="text-xs text-[#6f7a73]">
+          {formatDate(payment.createdAt)} · {formatTime(payment.createdAt)}
+        </p>
+        <span className="text-sm font-bold text-[#191c1b]">
+          {formatCFA(payment.amount)}
+        </span>
+      </div>
+    </Link>
   );
-}
-
-function formatDate(dateString: string): string {
-  return new Date(dateString).toLocaleDateString("fr-CM", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
-}
-
-function formatTime(dateString: string): string {
-  return new Date(dateString).toLocaleTimeString("fr-CM", {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
 }
 
 export default function CustomerPaymentsPage() {
@@ -117,95 +163,52 @@ export default function CustomerPaymentsPage() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
-  const limit = 10;
-
-  // Filters
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [methodFilter, setMethodFilter] = useState("");
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
+  const [showExportMenu, setShowExportMenu] = useState(false);
+  const limit = 10;
 
-  // Stats
   const [stats, setStats] = useState({
     totalPaid: 0,
     totalPayments: 0,
     successRate: 0,
-    pendingAmount: 0,
   });
-
-  const hasActiveFilters = useMemo(
-    () => !!(search || statusFilter || methodFilter || dateFrom || dateTo),
-    [search, statusFilter, methodFilter, dateFrom, dateTo],
-  );
-
-  const clearFilters = () => {
-    setSearch("");
-    setStatusFilter("");
-    setMethodFilter("");
-    setDateFrom("");
-    setDateTo("");
-    setPage(1);
-  };
 
   const fetchPayments = useCallback(
     async (isRefresh = false) => {
-      if (isRefresh) {
-        setRefreshing(true);
-      } else {
-        setLoading(true);
-      }
+      if (isRefresh) setRefreshing(true);
+      else setLoading(true);
 
       try {
-        const params: {
-          page?: number;
-          limit?: number;
-          status?: string;
-          method?: string;
-          dateFrom?: string;
-          dateTo?: string;
-        } = { page, limit };
+        const params: Record<string, unknown> = { page, limit };
         if (statusFilter) params.status = statusFilter;
         if (methodFilter) params.method = methodFilter;
-        if (dateFrom) params.dateFrom = dateFrom;
-        if (dateTo) params.dateTo = dateTo;
 
-        const res = await paymentsApi.getMyPayments(params);
+        const res = await paymentsApi.getMyPayments(
+          params as {
+            page?: number;
+            limit?: number;
+            status?: string;
+            method?: string;
+          },
+        );
         const data = res.data.data;
-
         setPayments(data?.items || []);
         setTotalPages(data?.meta?.totalPages || 1);
         setTotal(data?.meta?.total || 0);
 
-        // Calculate stats
+        // Stats
         const allRes = await paymentsApi.getMyPayments({ limit: 1000 });
         const allPayments: Payment[] = allRes.data.data?.items || [];
-
-        const successfulPayments = allPayments.filter(
-          (p) => p.status === "SUCCESS",
-        );
-        const totalPaid = successfulPayments.reduce(
-          (sum, p) => sum + (p.amount || 0),
-          0,
-        );
-        const pendingPayments = allPayments.filter(
-          (p) => p.status === "PENDING" || p.status === "INITIATED",
-        );
-        const pendingAmount = pendingPayments.reduce(
-          (sum, p) => sum + (p.amount || 0),
-          0,
-        );
-
+        const successful = allPayments.filter((p) => p.status === "SUCCESS");
         setStats({
-          totalPaid,
+          totalPaid: successful.reduce((s, p) => s + (p.amount || 0), 0),
           totalPayments: allPayments.length,
           successRate:
             allPayments.length > 0
-              ? Math.round(
-                  (successfulPayments.length / allPayments.length) * 100,
-                )
+              ? Math.round((successful.length / allPayments.length) * 100)
               : 0,
-          pendingAmount,
         });
       } catch (err) {
         toast.error(getErrorMessage(err));
@@ -214,14 +217,13 @@ export default function CustomerPaymentsPage() {
         setRefreshing(false);
       }
     },
-    [page, statusFilter, methodFilter, dateFrom, dateTo],
+    [page, statusFilter, methodFilter],
   );
 
   useEffect(() => {
     fetchPayments();
   }, [fetchPayments]);
 
-  // Client-side search filter
   const filteredPayments = useMemo(() => {
     if (!search) return payments;
     const term = search.toLowerCase();
@@ -229,18 +231,16 @@ export default function CustomerPaymentsPage() {
       (p) =>
         p.id?.toLowerCase().includes(term) ||
         p.order?.orderNumber?.toLowerCase().includes(term) ||
-        p.transactionId?.toLowerCase().includes(term) ||
-        p.order?.deliveryStreet?.toLowerCase().includes(term) ||
-        p.order?.deliveryNeighborhood?.toLowerCase().includes(term),
+        p.transactionId?.toLowerCase().includes(term),
     );
   }, [payments, search]);
 
   const handleExportCSV = () => {
-    const header = "Date,Commande,Méthode,Montant,Statut,Transaction ID\n";
+    const header = "Date,Commande,Méthode,Montant,Statut\n";
     const rows = filteredPayments
       .map(
         (p) =>
-          `${formatDate(p.createdAt)},${p.order?.orderNumber || ""},${METHOD_LABELS[p.method] || p.method},${p.amount},${p.status},${p.transactionId || ""}`,
+          `${formatDate(p.createdAt)},${p.order?.orderNumber || ""},${METHOD_LABELS[p.method] || ""},${p.amount},${p.status}`,
       )
       .join("\n");
     const blob = new Blob([header + rows], { type: "text/csv" });
@@ -251,244 +251,298 @@ export default function CustomerPaymentsPage() {
     a.click();
     URL.revokeObjectURL(url);
     toast.success("Export CSV réussi");
-  };
-
-  const handleExportPDF = () => {
-    // Simple HTML-to-PDF export
-    const html = `
-      <!DOCTYPE html>
-      <html>
-      <head><meta charset="utf-8"><title>Paiements TARA</title>
-      <style>
-        body { font-family: Arial, sans-serif; padding: 20px; }
-        h1 { color: #00503a; }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; font-size: 12px; }
-        th { background: #00503a; color: white; }
-        .total { font-weight: bold; color: #00503a; }
-      </style>
-      </head>
-      <body>
-        <h1>TARA DELIVERY - Historique des Paiements</h1>
-        <p>Date: ${new Date().toLocaleDateString("fr-CM")}</p>
-        <table>
-          <thead>
-            <tr><th>Date</th><th>Commande</th><th>Méthode</th><th>Montant</th><th>Statut</th></tr>
-          </thead>
-          <tbody>
-            ${filteredPayments
-              .map(
-                (p) =>
-                  `<tr><td>${formatDate(p.createdAt)}</td><td>${p.order?.orderNumber || ""}</td><td>${METHOD_LABELS[p.method] || ""}</td><td>${p.amount.toLocaleString()} XAF</td><td>${p.status}</td></tr>`,
-              )
-              .join("")}
-          </tbody>
-        </table>
-        <p class="total">Total: ${formatCurrency(stats.totalPaid)}</p>
-      </body>
-      </html>
-    `;
-    const blob = new Blob([html], { type: "text/html" });
-    const url = URL.createObjectURL(blob);
-    const win = window.open(url, "_blank");
-    if (win) {
-      win.onload = () => win.print();
-    }
-    toast.success("PDF prêt à imprimer");
+    setShowExportMenu(false);
   };
 
   return (
     <div className="min-h-screen bg-[#f8faf7] text-[#191c1b]">
       <Header />
-
       <div className="flex pt-20">
         <Sidebar />
-
-        <main className="flex-1 overflow-y-auto px-4 md:px-8 lg:px-12 py-6 pb-28 md:pb-24 max-w-6xl mx-auto w-full">
+        <main className="flex-1 overflow-y-auto p-4 md:p-8 lg:p-12 pb-28 md:pb-24 max-w-7xl mx-auto w-full">
           {/* Header */}
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-6">
+          <header className="mb-8 md:mb-10 flex flex-col md:flex-row md:items-end justify-between gap-4">
             <div>
-              <h1 className="text-2xl md:text-3xl font-extrabold text-[#00503a] tracking-tight">
-                Paiements
+              <h1 className="text-2xl md:text-4xl font-extrabold text-[#00503a] tracking-tight mb-1 md:mb-2">
+                Historique des Paiements
               </h1>
-              <p className="text-sm text-[#3f4944] mt-1">
-                Historique de vos transactions
+              <p className="text-sm md:text-base text-[#3f4944]">
+                Consultez vos transactions passées.
               </p>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex gap-2 md:gap-3">
               <button
                 onClick={() => fetchPayments(true)}
                 disabled={refreshing}
-                className="flex items-center gap-2 px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-50"
+                className="flex items-center gap-2 px-3 md:px-4 py-2 md:py-2.5 bg-[#e7e9e6] text-[#191c1b] font-medium rounded-lg hover:bg-[#e1e3e1] transition-colors"
               >
                 <RefreshCw
                   className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`}
                 />
               </button>
-              <button
-                onClick={handleExportCSV}
-                className="flex items-center gap-2 px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors"
-              >
-                <Download className="w-4 h-4" />
-                <span className="hidden sm:inline">CSV</span>
-              </button>
-              <button
-                onClick={handleExportPDF}
-                className="flex items-center gap-2 px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors"
-              >
-                <FileText className="w-4 h-4" />
-                <span className="hidden sm:inline">PDF</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Stats */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-            <StatCard
-              title="Total Payé"
-              value={formatCurrency(stats.totalPaid)}
-              icon={<Wallet className="w-5 h-5" />}
-              color="green"
-            />
-            <StatCard
-              title="Transactions"
-              value={stats.totalPayments}
-              icon={<TrendingUp className="w-5 h-5" />}
-              color="blue"
-            />
-            <StatCard
-              title="Taux Réussite"
-              value={`${stats.successRate}%`}
-              icon={<TrendingUp className="w-5 h-5" />}
-              color="green"
-            />
-            <StatCard
-              title="En Attente"
-              value={formatCurrency(stats.pendingAmount)}
-              icon={<Wallet className="w-5 h-5" />}
-              color="amber"
-            />
-          </div>
-
-          {/* Filters */}
-          <div className="mb-6">
-            <FilterBar
-              searchValue={search}
-              onSearchChange={setSearch}
-              searchPlaceholder="Rechercher par ID, commande..."
-              dateFrom={dateFrom}
-              dateTo={dateTo}
-              onDateFromChange={setDateFrom}
-              onDateToChange={setDateTo}
-              statusOptions={PAYMENT_STATUS_OPTIONS}
-              statusValue={statusFilter}
-              onStatusChange={setStatusFilter}
-              statusLabel="Statut"
-              methodOptions={PAYMENT_METHOD_OPTIONS}
-              methodValue={methodFilter}
-              onMethodChange={setMethodFilter}
-              methodLabel="Méthode"
-              onClear={clearFilters}
-              hasActiveFilters={hasActiveFilters}
-            />
-          </div>
-
-          {/* Content */}
-          {loading ? (
-            <div className="space-y-6">
-              <StatsSkeleton />
-              <TableSkeleton rows={5} />
-            </div>
-          ) : filteredPayments.length === 0 ? (
-            <EmptyState
-              title={hasActiveFilters ? "Aucun résultat" : "Aucun paiement"}
-              description={
-                hasActiveFilters
-                  ? "Aucun paiement ne correspond aux filtres actuels."
-                  : "Vous n'avez pas encore effectué de paiement."
-              }
-              icon={hasActiveFilters ? "search" : "package"}
-              action={
-                hasActiveFilters
-                  ? { label: "Effacer les filtres", onClick: clearFilters }
-                  : undefined
-              }
-            />
-          ) : (
-            <div className="space-y-3">
-              {filteredPayments.map((payment) => (
-                <Link
-                  key={payment.id}
-                  href={`/customer/payments/${payment.id}`}
-                  className="block bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all p-4 md:p-5"
+              <div className="relative">
+                <button
+                  onClick={() => setShowExportMenu(!showExportMenu)}
+                  className="flex items-center gap-2 px-3 md:px-5 py-2 md:py-2.5 bg-[#e7e9e6] text-[#191c1b] font-semibold rounded-lg hover:bg-[#e1e3e1] transition-colors"
                 >
-                  <div className="flex items-start gap-4">
-                    {/* Method Icon */}
-                    <div className="w-12 h-12 rounded-xl bg-slate-50 flex items-center justify-center shrink-0">
-                      {METHOD_ICONS[payment.method] || (
-                        <Wallet className="w-5 h-5 text-slate-400" />
-                      )}
+                  <Download className="w-4 h-4" />
+                  <span className="hidden md:inline">Exporter</span>
+                </button>
+                {showExportMenu && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-10"
+                      onClick={() => setShowExportMenu(false)}
+                    />
+                    <div className="absolute right-0 top-12 z-20 bg-white rounded-xl shadow-lg border border-slate-100 py-2 min-w-[180px]">
+                      <button
+                        onClick={handleExportCSV}
+                        className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 w-full text-left"
+                      >
+                        <Download className="w-4 h-4 text-green-600" />
+                        Exporter en CSV
+                      </button>
                     </div>
+                  </>
+                )}
+              </div>
+            </div>
+          </header>
 
-                    {/* Payment Info */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-2 mb-1">
-                        <div>
-                          <h3 className="font-bold text-sm text-[#191c1b]">
-                            {payment.order?.orderNumber ||
-                              `Commande #${payment.orderId?.slice(0, 8)}`}
-                          </h3>
-                          <p className="text-xs text-slate-500">
-                            {METHOD_LABELS[payment.method] || payment.method}
-                          </p>
-                        </div>
-                        <StatusBadge
-                          status={payment.status}
-                          variant="payment"
-                        />
-                      </div>
-
-                      <div className="flex items-center gap-1 text-xs text-slate-500 mb-2">
-                        <span className="truncate">
-                          {payment.order?.deliveryStreet &&
-                          payment.order?.deliveryNeighborhood
-                            ? `${payment.order.deliveryStreet}, ${payment.order.deliveryNeighborhood}`
-                            : payment.transactionId
-                              ? `ID: ${payment.transactionId}`
-                              : "En attente de confirmation"}
-                        </span>
-                      </div>
-
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs text-slate-400">
-                          {formatDate(payment.createdAt)} ·{" "}
-                          {formatTime(payment.createdAt)}
-                        </span>
-                        <div className="flex items-center gap-2">
-                          <span className="font-bold text-sm text-[#191c1b]">
-                            {formatCurrency(payment.amount)}
-                          </span>
-                          <ChevronRight className="w-4 h-4 text-slate-300" />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </Link>
-              ))}
-
-              {/* Pagination */}
-              <Pagination
-                currentPage={page}
-                totalPages={totalPages}
-                total={total}
-                limit={limit}
-                onPageChange={setPage}
+          {/* Search & Filters */}
+          <section className="mb-6 md:mb-8 flex flex-wrap items-center gap-3 md:gap-4">
+            <div className="flex-1 min-w-[200px] md:min-w-[300px] relative">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#6f7a73]" />
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full pl-12 pr-4 py-2.5 md:py-3 bg-[#f2f4f2] border-none rounded-xl focus:ring-2 focus:ring-[#00503a]/20 text-[#191c1b] placeholder:text-[#6f7a73] text-sm"
+                placeholder="Rechercher..."
               />
             </div>
+            <div className="flex items-center gap-1.5 md:gap-2 bg-[#f2f4f2] px-1.5 md:px-2 py-1 md:py-1.5 rounded-xl overflow-x-auto">
+              {[
+                { v: "", l: "Tous" },
+                { v: "SUCCESS", l: "Réussi" },
+                { v: "PENDING", l: "En attente" },
+                { v: "FAILED", l: "Échoué" },
+              ].map((f) => (
+                <button
+                  key={f.v}
+                  onClick={() => {
+                    setStatusFilter(f.v);
+                    setPage(1);
+                  }}
+                  className={`px-3 md:px-4 py-1 md:py-1.5 rounded-lg text-xs md:text-sm font-medium transition-colors whitespace-nowrap ${
+                    statusFilter === f.v
+                      ? "bg-white shadow-sm text-[#00503a] font-bold"
+                      : "text-[#3f4944] hover:bg-white/50"
+                  }`}
+                >
+                  {f.l}
+                </button>
+              ))}
+            </div>
+          </section>
+
+          {/* Loading */}
+          {loading ? (
+            <div className="space-y-6 md:space-y-8">
+              <StatsSkeleton count={3} />
+              <div className="md:hidden space-y-3">
+                {[1, 2, 3].map((i) => (
+                  <CardSkeleton key={i} />
+                ))}
+              </div>
+              <div className="hidden md:block">
+                <TableSkeleton rows={5} />
+              </div>
+            </div>
+          ) : (
+            <>
+              {/* Mobile Card Layout */}
+              <div className="md:hidden space-y-3">
+                {filteredPayments.length === 0 ? (
+                  <div className="text-center py-12">
+                    <Wallet className="w-12 h-12 mx-auto mb-4 text-[#bec9c2]" />
+                    <p className="font-medium text-[#6f7a73]">Aucun paiement</p>
+                  </div>
+                ) : (
+                  filteredPayments.map((payment) => (
+                    <PaymentCard key={payment.id} payment={payment} />
+                  ))
+                )}
+              </div>
+
+              {/* Desktop Table Layout */}
+              <section className="hidden md:block bg-white rounded-2xl overflow-hidden shadow-sm">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="bg-[#f2f4f2] border-none">
+                        <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-[#3f4944]">
+                          Date
+                        </th>
+                        <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-[#3f4944]">
+                          Commande
+                        </th>
+                        <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-[#3f4944]">
+                          Méthode
+                        </th>
+                        <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-[#3f4944]">
+                          Statut
+                        </th>
+                        <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-[#3f4944]">
+                          Montant
+                        </th>
+                        <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-[#3f4944] text-right">
+                          Actions
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#00503a]/5">
+                      {filteredPayments.length === 0 ? (
+                        <tr>
+                          <td
+                            colSpan={6}
+                            className="px-6 py-16 text-center text-[#6f7a73]"
+                          >
+                            <Wallet className="w-12 h-12 mx-auto mb-4 text-[#bec9c2]" />
+                            <p className="font-medium">Aucun paiement</p>
+                          </td>
+                        </tr>
+                      ) : (
+                        filteredPayments.map((payment) => (
+                          <tr
+                            key={payment.id}
+                            className="hover:bg-[#f2f4f2]/50 transition-colors"
+                          >
+                            <td className="px-6 py-5">
+                              <div className="flex flex-col">
+                                <span className="text-sm font-semibold text-[#191c1b]">
+                                  {formatDate(payment.createdAt)}
+                                </span>
+                                <span className="text-xs text-[#6f7a73]">
+                                  {formatTime(payment.createdAt)}
+                                </span>
+                              </div>
+                            </td>
+                            <td className="px-6 py-5">
+                              <span className="font-mono text-sm text-[#00503a] font-bold">
+                                #
+                                {payment.order?.orderNumber ||
+                                  payment.orderId?.slice(0, 8)}
+                              </span>
+                            </td>
+                            <td className="px-6 py-5">
+                              <div className="flex items-center gap-2">
+                                {METHOD_ICONS[payment.method] || (
+                                  <Wallet className="w-4 h-4 text-slate-400" />
+                                )}
+                                <span className="text-sm text-[#191c1b]">
+                                  {METHOD_LABELS[payment.method] ||
+                                    payment.method}
+                                </span>
+                              </div>
+                            </td>
+                            <td className="px-6 py-5">
+                              <span
+                                className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold uppercase tracking-tight ${getPaymentStatusStyle(payment.status)}`}
+                              >
+                                {getPaymentStatusLabel(payment.status)}
+                              </span>
+                            </td>
+                            <td className="px-6 py-5">
+                              <span className="text-sm font-bold text-[#191c1b]">
+                                {formatCFA(payment.amount)}
+                              </span>
+                            </td>
+                            <td className="px-6 py-5 text-right">
+                              <Link
+                                href={`/customer/payments/${payment.id}`}
+                                className="inline-flex items-center gap-2 px-4 py-2 bg-[#feb700] text-[#271900] rounded-lg font-bold text-xs uppercase tracking-tighter hover:shadow-md transition-all active:scale-95"
+                              >
+                                Voir
+                              </Link>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Pagination */}
+                <div className="px-6 py-4 bg-[#f2f4f2] flex justify-between items-center">
+                  <p className="text-xs font-medium text-[#3f4944]">
+                    Affichage {(page - 1) * limit + 1}-
+                    {Math.min(page * limit, total)} sur {total} paiements
+                  </p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setPage((p) => Math.max(1, p - 1))}
+                      disabled={page === 1}
+                      className="p-2 bg-white rounded-lg shadow-sm text-[#3f4944] disabled:opacity-50"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                    </button>
+                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                      const p = i + 1;
+                      return (
+                        <button
+                          key={p}
+                          onClick={() => setPage(p)}
+                          className={`px-4 py-2 text-xs font-bold rounded-lg transition-colors ${page === p ? "bg-[#00503a] text-white" : "hover:bg-white text-[#3f4944]"}`}
+                        >
+                          {p}
+                        </button>
+                      );
+                    })}
+                    <button
+                      onClick={() =>
+                        setPage((p) => Math.min(totalPages, p + 1))
+                      }
+                      disabled={page === totalPages}
+                      className="p-2 bg-white rounded-lg shadow-sm text-[#3f4944] disabled:opacity-50"
+                    >
+                      <ChevronDown className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              </section>
+
+              {/* Stats */}
+              <section className="mt-8 md:mt-12 grid grid-cols-3 md:grid-cols-3 gap-3 md:gap-6">
+                <div className="bg-[#00503a] p-4 md:p-6 rounded-2xl text-white">
+                  <p className="text-[#92e7c3] text-[10px] md:text-sm font-bold uppercase tracking-widest mb-1 md:mb-2">
+                    Total Payé
+                  </p>
+                  <h3 className="text-lg md:text-3xl font-extrabold">
+                    {formatCFA(stats.totalPaid)}
+                  </h3>
+                </div>
+                <div className="bg-[#feb700] p-4 md:p-6 rounded-2xl text-[#271900]">
+                  <p className="text-[#6b4b00] text-[10px] md:text-sm font-bold uppercase tracking-widest mb-1 md:mb-2">
+                    Transactions
+                  </p>
+                  <h3 className="text-lg md:text-3xl font-extrabold">
+                    {stats.totalPayments}
+                  </h3>
+                </div>
+                <div className="bg-[#e1e3e1] p-4 md:p-6 rounded-2xl text-[#191c1b]">
+                  <p className="text-[#3f4944] text-[10px] md:text-sm font-bold uppercase tracking-widest mb-1 md:mb-2">
+                    Taux Réussite
+                  </p>
+                  <h3 className="text-lg md:text-3xl font-extrabold">
+                    {stats.successRate}%
+                  </h3>
+                </div>
+              </section>
+            </>
           )}
         </main>
       </div>
-
       <PageFooter />
       <MobileNav />
     </div>
