@@ -27,7 +27,7 @@ import {
   PageFooter,
 } from "@/components/CustomerLayout";
 import { StatusBadge } from "@/components/shared/StatusBadge";
-import { LoadingState } from "@/components/shared/EmptyState";
+import { DetailSkeleton } from "@/components/shared/Skeleton";
 import toast from "react-hot-toast";
 
 interface PaymentOrder {
@@ -172,7 +172,7 @@ export default function PaymentDetailPage() {
         <div className="flex pt-20">
           <Sidebar />
           <main className="flex-1 overflow-y-auto px-4 md:px-8 lg:px-12 py-6 pb-28 md:pb-24 max-w-4xl mx-auto w-full">
-            <LoadingState />
+            <DetailSkeleton />
           </main>
         </div>
         <PageFooter />

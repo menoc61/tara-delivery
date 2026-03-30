@@ -26,7 +26,8 @@ import { StatusBadge } from "@/components/shared/StatusBadge";
 import { FilterBar } from "@/components/shared/FilterBar";
 import { Pagination } from "@/components/shared/Pagination";
 import { StatCard } from "@/components/shared/StatCard";
-import { EmptyState, LoadingState } from "@/components/shared/EmptyState";
+import { EmptyState } from "@/components/shared/EmptyState";
+import { TableSkeleton, StatsSkeleton } from "@/components/shared/Skeleton";
 import toast from "react-hot-toast";
 
 interface PaymentOrder {
@@ -394,7 +395,10 @@ export default function CustomerPaymentsPage() {
 
           {/* Content */}
           {loading ? (
-            <LoadingState />
+            <div className="space-y-6">
+              <StatsSkeleton />
+              <TableSkeleton rows={5} />
+            </div>
           ) : filteredPayments.length === 0 ? (
             <EmptyState
               title={hasActiveFilters ? "Aucun résultat" : "Aucun paiement"}

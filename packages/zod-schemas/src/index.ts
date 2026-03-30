@@ -123,7 +123,7 @@ export const assignRiderSchema = z.object({
 
 export const orderFiltersSchema = paginationSchema.extend({
   status: z.string().optional(),
-  type: z.nativeEnum(OrderType).optional(),
+  type: z.string().optional(), // Changed from nativeEnum to string to avoid validation errors on empty params
   riderId: z.string().uuid().optional(),
   userId: z.string().uuid().optional(),
   dateFrom: z.coerce.date().optional(),

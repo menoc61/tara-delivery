@@ -16,6 +16,7 @@ import {
   Repeat,
   MoreVertical,
   X,
+  FileText,
 } from "lucide-react";
 import { useAuthStore } from "@/store/auth.store";
 import { ordersApi } from "@/lib/api-client";
@@ -30,7 +31,8 @@ import { StatusBadge } from "@/components/shared/StatusBadge";
 import { FilterBar } from "@/components/shared/FilterBar";
 import { Pagination } from "@/components/shared/Pagination";
 import { StatCard } from "@/components/shared/StatCard";
-import { EmptyState, LoadingState } from "@/components/shared/EmptyState";
+import { EmptyState } from "@/components/shared/EmptyState";
+import { TableSkeleton, StatsSkeleton } from "@/components/shared/Skeleton";
 import toast from "react-hot-toast";
 
 interface OrderItem {
@@ -126,6 +128,7 @@ export default function CustomerOrdersPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
   const [openMenu, setOpenMenu] = useState<string | null>(null);
+  const [showExportMenu, setShowExportMenu] = useState(false);
   const limit = 10;
 
   // Filters
@@ -274,7 +277,7 @@ export default function CustomerOrdersPage() {
     );
   }, [orders, search]);
 
-  const handleExport = () => {
+  const handleExportCSV = () => {
     const header = "N° Commande,Date,Statut,Montant,Adresse\n";
     const rows = filteredOrders
       .map(
@@ -290,6 +293,31 @@ export default function CustomerOrdersPage() {
     a.click();
     URL.revokeObjectURL(url);
     toast.success("Export CSV réussi");
+    setShowExportMenu(false);
+  };
+
+  const handleExportPDF = () => {
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Commandes TARA</title>
+    <style>body{font-family:Arial;padding:20px}h1{color:#00503a}table{width:100%;border-collapse:collapse;margin-top:20px}
+    th,td{border:1px solid #ddd;padding:8px;text-align:left;font-size:12px}th{background:#00503a;color:white}
+    .total{font-weight:bold;color:#00503a}</style></head><body>
+    <h1>TARA DELIVERY - Historique des Commandes</h1>
+    <p>Date: ${new Date().toLocaleDateString("fr-CM")}</p>
+    <table><thead><tr><th>N°</th><th>Date</th><th>Statut</th><th>Montant</th><th>Adresse</th></tr></thead>
+    <tbody>${filteredOrders
+      .map(
+        (o) =>
+          `<tr><td>${o.orderNumber}</td><td>${formatDate(o.createdAt)}</td><td>${o.status}</td>
+      <td>${formatCurrency(o.totalAmount)}</td><td>${o.deliveryStreet}, ${o.deliveryNeighborhood}</td></tr>`,
+      )
+      .join("")}</tbody></table>
+    <p class="total">Total: ${formatCurrency(stats.totalSpent)}</p></body></html>`;
+    const blob = new Blob([html], { type: "text/html" });
+    const url = URL.createObjectURL(blob);
+    const win = window.open(url, "_blank");
+    if (win) win.onload = () => win.print();
+    toast.success("PDF prêt à imprimer");
+    setShowExportMenu(false);
   };
 
   return (
@@ -320,13 +348,39 @@ export default function CustomerOrdersPage() {
                   className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`}
                 />
               </button>
-              <button
-                onClick={handleExport}
-                className="flex items-center gap-2 px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors"
-              >
-                <Download className="w-4 h-4" />
-                <span className="hidden sm:inline">CSV</span>
-              </button>
+              <div className="relative">
+                <button
+                  onClick={() => setShowExportMenu(!showExportMenu)}
+                  className="flex items-center gap-2 px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors"
+                >
+                  <Download className="w-4 h-4" />
+                  <span className="hidden sm:inline">Exporter</span>
+                </button>
+                {showExportMenu && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-10"
+                      onClick={() => setShowExportMenu(false)}
+                    />
+                    <div className="absolute right-0 top-12 z-20 bg-white rounded-xl shadow-lg border border-slate-100 py-2 min-w-[160px]">
+                      <button
+                        onClick={handleExportCSV}
+                        className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 w-full text-left"
+                      >
+                        <Download className="w-4 h-4 text-green-600" />
+                        Exporter en CSV
+                      </button>
+                      <button
+                        onClick={handleExportPDF}
+                        className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 w-full text-left"
+                      >
+                        <FileText className="w-4 h-4 text-red-600" />
+                        Exporter en PDF
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
               <Link
                 href="/customer/new-order"
                 className="flex items-center gap-2 px-4 py-2 bg-[#00503a] text-white rounded-xl text-sm font-bold hover:bg-[#006a4e] transition-colors shadow-sm"
@@ -386,7 +440,10 @@ export default function CustomerOrdersPage() {
 
           {/* Content */}
           {loading ? (
-            <LoadingState />
+            <div className="space-y-6">
+              <StatsSkeleton />
+              <TableSkeleton rows={5} />
+            </div>
           ) : filteredOrders.length === 0 ? (
             <EmptyState
               title={hasActiveFilters ? "Aucun résultat" : "Aucune commande"}
