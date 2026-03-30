@@ -19,6 +19,7 @@ import toast from "react-hot-toast";
 import { registerSchema, RegisterInput } from "@tara/zod-schemas";
 import { useAuthStore } from "@/store/auth.store";
 import { authApi } from "@/lib/api-client";
+import { getErrorMessage } from "@/lib/errors";
 import { UserRole } from "@tara/types";
 
 function RegisterForm() {
@@ -65,10 +66,7 @@ function RegisterForm() {
         router.push("/customer");
       }
     } catch (err: unknown) {
-      const msg =
-        (err as { response?: { data?: { message?: string } } })?.response?.data
-          ?.message || "Erreur lors de la création du compte";
-      toast.error(msg);
+      toast.error(getErrorMessage(err));
     } finally {
       setLoading(false);
     }

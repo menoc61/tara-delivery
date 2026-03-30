@@ -33,12 +33,21 @@ apiClient.interceptors.request.use(
 let isRefreshing = false;
 let refreshQueue: ((token: string) => void)[] = [];
 
+// Paths that should NOT trigger redirect on 401
+const publicPaths = ["/auth/login", "/auth/register", "/auth/forgot-password"];
+
 apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
     const original = error.config;
 
-    if (error.response?.status === 401 && !original._retry) {
+    // Skip refresh logic for public paths
+    const isPublicPath = publicPaths.some(
+      (p) =>
+        typeof window !== "undefined" && window.location.pathname.startsWith(p),
+    );
+
+    if (error.response?.status === 401 && !original._retry && !isPublicPath) {
       if (isRefreshing) {
         return new Promise((resolve) => {
           refreshQueue.push((token) => {
@@ -53,7 +62,8 @@ apiClient.interceptors.response.use(
 
       try {
         const stored = localStorage.getItem("tara-auth");
-        const { tokens } = stored ? JSON.parse(stored).state : {};
+        const parsed = stored ? JSON.parse(stored) : {};
+        const tokens = parsed?.state?.tokens;
 
         if (tokens?.refreshToken) {
           const { data } = await axios.post(`${API_URL}/auth/refresh`, {
@@ -62,8 +72,10 @@ apiClient.interceptors.response.use(
 
           const newTokens = data.data;
           const current = JSON.parse(localStorage.getItem("tara-auth") || "{}");
-          current.state.tokens = newTokens;
-          localStorage.setItem("tara-auth", JSON.stringify(current));
+          if (current.state) {
+            current.state.tokens = newTokens;
+            localStorage.setItem("tara-auth", JSON.stringify(current));
+          }
 
           refreshQueue.forEach((cb) => cb(newTokens.accessToken));
           refreshQueue = [];
@@ -71,8 +83,12 @@ apiClient.interceptors.response.use(
           return apiClient(original);
         }
       } catch {
-        localStorage.removeItem("tara-auth");
-        window.location.href = "/auth/login";
+        // Only redirect if we actually had a token to refresh
+        const stored = localStorage.getItem("tara-auth");
+        if (stored) {
+          localStorage.removeItem("tara-auth");
+          window.location.href = "/auth/login";
+        }
       } finally {
         isRefreshing = false;
       }
@@ -98,7 +114,14 @@ export const authApi = {
 
 export const ordersApi = {
   create: (data: unknown) => apiClient.post("/orders", data),
-  getMyOrders: (params?: unknown) => apiClient.get("/orders/my", { params }),
+  getMyOrders: (params?: {
+    page?: number;
+    limit?: number;
+    status?: string;
+    type?: string;
+    dateFrom?: string;
+    dateTo?: string;
+  }) => apiClient.get("/orders/my", { params }),
   getById: (id: string) => apiClient.get(`/orders/${id}`),
   cancel: (id: string, reason: string) =>
     apiClient.post(`/orders/${id}/cancel`, { reason }),
@@ -117,10 +140,17 @@ export const ordersApi = {
 export const paymentsApi = {
   initiate: (data: unknown) => apiClient.post("/payments/initiate", data),
   getByOrder: (orderId: string) => apiClient.get(`/payments/order/${orderId}`),
-  verify: (orderId: string) =>
-    apiClient.get(`/payments/order/${orderId}/verify`),
-  getMyPayments: (params?: unknown) =>
-    apiClient.get("/payments/my", { params }),
+  getById: (id: string) => apiClient.get(`/payments/${id}`),
+  getMyPayments: (params?: {
+    page?: number;
+    limit?: number;
+    status?: string;
+    method?: string;
+    dateFrom?: string;
+    dateTo?: string;
+  }) => apiClient.get("/payments/my", { params }),
+  pollStatus: (orderId: string) =>
+    apiClient.get(`/payments/order/${orderId}/poll`),
 };
 
 export const ridersApi = {

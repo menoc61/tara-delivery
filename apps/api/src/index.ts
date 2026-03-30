@@ -45,11 +45,11 @@ app.use(
 
 // Rate limiting
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100,
+  windowMs: 15 * 60 * 1000,
+  max: 1000,
   message: {
     success: false,
-    error: "Too many requests, please try again later.",
+    error: "Trop de requêtes. Veuillez réessayer plus tard.",
   },
   standardHeaders: true,
   legacyHeaders: false,
@@ -57,10 +57,13 @@ const limiter = rateLimit({
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 10,
+  max: 100, // Increased from 10 to 100 for development
+  standardHeaders: true,
+  legacyHeaders: false,
   message: {
     success: false,
-    error: "Too many auth attempts, please try again later.",
+    error:
+      "Trop de tentatives de connexion. Veuillez réessayer dans 15 minutes.",
   },
 });
 

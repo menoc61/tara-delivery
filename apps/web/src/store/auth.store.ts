@@ -7,6 +7,7 @@ interface AuthState {
   tokens: AuthTokens | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  hasHydrated: boolean;
 
   setAuth: (user: User, tokens: AuthTokens) => void;
   setUser: (user: User) => void;
@@ -14,6 +15,7 @@ interface AuthState {
   clearAuth: () => void;
   setLoading: (loading: boolean) => void;
   isRole: (role: UserRole) => boolean;
+  setHasHydrated: (hydrated: boolean) => void;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -23,6 +25,7 @@ export const useAuthStore = create<AuthState>()(
       tokens: null,
       isAuthenticated: false,
       isLoading: false,
+      hasHydrated: false,
 
       setAuth: (user, tokens) =>
         set({ user, tokens, isAuthenticated: true, isLoading: false }),
@@ -37,6 +40,8 @@ export const useAuthStore = create<AuthState>()(
       setLoading: (isLoading) => set({ isLoading }),
 
       isRole: (role) => get().user?.role === role,
+
+      setHasHydrated: (hydrated) => set({ hasHydrated: hydrated }),
     }),
     {
       name: "tara-auth",
@@ -46,6 +51,9 @@ export const useAuthStore = create<AuthState>()(
         tokens: state.tokens,
         isAuthenticated: state.isAuthenticated,
       }),
-    }
-  )
+      onRehydrateStorage: () => (state) => {
+        state?.setHasHydrated(true);
+      },
+    },
+  ),
 );

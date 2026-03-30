@@ -15,6 +15,7 @@ import {
   Settings,
   CreditCard,
   Wallet,
+  User,
 } from "lucide-react";
 import { useAuthStore } from "@/store/auth.store";
 import { ordersApi, authApi } from "@/lib/api-client";
@@ -535,7 +536,7 @@ export default function CustomerDashboard() {
           href="/customer/profile"
           className="flex flex-col items-center gap-1 text-slate-400"
         >
-          <span className="text-xl">👤</span>
+          <User className="w-5 h-5" />
           <span className="text-[10px] font-bold">Profil</span>
         </Link>
       </div>

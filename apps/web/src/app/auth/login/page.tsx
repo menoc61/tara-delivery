@@ -18,6 +18,7 @@ import toast from "react-hot-toast";
 import { loginSchema, LoginInput } from "@tara/zod-schemas";
 import { useAuthStore } from "@/store/auth.store";
 import { authApi } from "@/lib/api-client";
+import { getErrorMessage } from "@/lib/errors";
 import { UserRole } from "@tara/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -69,8 +70,7 @@ export default function LoginPage() {
       else if (user.role === UserRole.RIDER) router.push("/rider");
       else router.push("/customer");
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { message?: string } } };
-      toast.error(error.response?.data?.message || "Identifiants invalides");
+      toast.error(getErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -86,8 +86,8 @@ export default function LoginPage() {
       if (user.role === UserRole.ADMIN) router.push("/admin");
       else if (user.role === UserRole.RIDER) router.push("/rider");
       else router.push("/customer");
-    } catch {
-      toast.error("Erreur de connexion");
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err));
     } finally {
       setLoading(false);
     }

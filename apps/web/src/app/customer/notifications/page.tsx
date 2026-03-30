@@ -22,6 +22,7 @@ import {
   Loader2,
   AlertTriangle,
   Phone,
+  X,
 } from "lucide-react";
 import { useAuthStore } from "@/store/auth.store";
 import {
@@ -245,6 +246,7 @@ function NotificationCard({
 }) {
   const [swipeX, setSwipeX] = useState(0);
   const [isSwiping, setIsSwiping] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const startXRef = useRef(0);
   const cardRef = useRef<HTMLDivElement>(null);
   const config = cardConfigs[notification.type] || defaultConfig;
@@ -276,6 +278,36 @@ function NotificationCard({
       setSwipeX(0);
     }
   };
+
+  // Desktop delete button
+  const DeleteButton = () =>
+    isDeletable ? (
+      <button
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          if (showDeleteConfirm) {
+            onDelete(notification.id);
+            setShowDeleteConfirm(false);
+          } else {
+            setShowDeleteConfirm(true);
+            setTimeout(() => setShowDeleteConfirm(false), 3000);
+          }
+        }}
+        className={`hidden md:flex items-center justify-center w-8 h-8 rounded-lg transition-all ${
+          showDeleteConfirm
+            ? "bg-red-500 text-white"
+            : "bg-slate-100 text-slate-400 hover:bg-red-50 hover:text-red-500"
+        }`}
+        title={showDeleteConfirm ? "Confirmer la suppression" : "Supprimer"}
+      >
+        {showDeleteConfirm ? (
+          <span className="text-xs font-bold">✓</span>
+        ) : (
+          <X className="w-4 h-4" />
+        )}
+      </button>
+    ) : null;
 
   const handleClick = () => {
     if (!notification.isRead) {
@@ -672,9 +704,12 @@ function NotificationCard({
               >
                 {notification.title}
               </h4>
-              <span className="text-[10px] text-slate-400 whitespace-nowrap">
-                {formatTime(notification.createdAt)}
-              </span>
+              <div className="flex items-center gap-2 shrink-0">
+                <span className="text-[10px] text-slate-400 whitespace-nowrap">
+                  {formatTime(notification.createdAt)}
+                </span>
+                <DeleteButton />
+              </div>
             </div>
             <p
               className={`text-sm ${!notification.isRead ? "text-slate-700" : "text-slate-500"}`}
@@ -792,7 +827,9 @@ export default function CustomerNotificationsPage() {
       toast.success("Notification supprimée");
     } catch (error) {
       const message =
-        error instanceof Error ? error.message : "Impossible de supprimer";
+        error instanceof Error
+          ? error.message
+          : "Impossible de supprimer cette notification";
       toast.error(message);
     }
   };
@@ -802,7 +839,7 @@ export default function CustomerNotificationsPage() {
       await markAllAsRead();
       toast.success("Toutes les notifications ont été lues");
     } catch {
-      toast.error("Erreur lors de la mise à jour");
+      toast.error("Impossible de marquer les notifications comme lues");
     }
   };
 

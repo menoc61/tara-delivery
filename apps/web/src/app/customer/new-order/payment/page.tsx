@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import {
   Package,
   Bell,
-  Building2,
   Smartphone,
   Wallet,
   CreditCard,
@@ -15,9 +14,18 @@ import {
   Lock,
 } from "lucide-react";
 import { useAuthStore } from "@/store/auth.store";
+import { ordersApi, paymentsApi } from "@/lib/api-client";
+import { getErrorMessage } from "@/lib/errors";
+import toast from "react-hot-toast";
 
 const formatCFA = (v: number) =>
   new Intl.NumberFormat("fr-CM").format(v) + " XAF";
+
+const PAYMENT_METHOD_MAP: Record<string, string> = {
+  mtn: "MTN_MOMO",
+  orange: "ORANGE_MONEY",
+  cash: "CASH_ON_DELIVERY",
+};
 
 export default function NewOrderStep4() {
   const { user } = useAuthStore();
@@ -33,7 +41,6 @@ export default function NewOrderStep4() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    // Load data from sessionStorage
     const data1 = JSON.parse(sessionStorage.getItem("orderItems") || "{}");
     const data2 = JSON.parse(sessionStorage.getItem("orderAddresses") || "{}");
     const data3 = JSON.parse(sessionStorage.getItem("orderFees") || "{}");
@@ -51,21 +58,83 @@ export default function NewOrderStep4() {
 
   const handlePayment = async () => {
     setLoading(true);
-    // Simulate payment processing
-    await new Promise((resolve) => setTimeout(resolve, 2000));
+    try {
+      // Build order payload from sessionStorage data
+      const orderPayload = {
+        type: step1Data.type as string,
+        pickupAddress: {
+          street: (step2Data.pickupStreet as string) || "",
+          neighborhood: (step2Data.pickupNeighborhood as string) || "",
+          city: "Yaoundé",
+          label: (step2Data.pickupLabel as string) || undefined,
+          landmark: (step2Data.pickupLandmark as string) || undefined,
+        },
+        deliveryAddress: {
+          street: (step2Data.deliveryStreet as string) || "",
+          neighborhood: (step2Data.deliveryNeighborhood as string) || "",
+          city: "Yaoundé",
+          label: (step2Data.deliveryLabel as string) || undefined,
+          landmark: (step2Data.deliveryLandmark as string) || undefined,
+        },
+        items: [
+          {
+            name: (step1Data.description as string) || "Envoi",
+            quantity: 1,
+            weight: (step1Data.weight as number) || 1,
+            description: (step1Data.description as string) || undefined,
+          },
+        ],
+        paymentMethod: PAYMENT_METHOD_MAP[paymentMethod],
+        phoneNumber: phoneNumber
+          ? `237${phoneNumber.replace(/\s/g, "")}`
+          : undefined,
+        notes: step2Data.notes as string | undefined,
+      };
 
-    // Store final order data
-    const finalOrderData = {
-      ...step1Data,
-      ...step2Data,
-      ...step3Data,
-      paymentMethod,
-      phoneNumber,
-      createdAt: new Date().toISOString(),
-    };
-    sessionStorage.setItem("completedOrder", JSON.stringify(finalOrderData));
+      // Create the order
+      const orderRes = await ordersApi.create(orderPayload);
+      const order = orderRes.data.data;
 
-    router.push("/customer/new-order/success");
+      // For mobile money, initiate payment
+      if (paymentMethod !== "cash") {
+        try {
+          await paymentsApi.initiate({
+            orderId: order.id,
+            method: PAYMENT_METHOD_MAP[paymentMethod],
+            phoneNumber: `237${phoneNumber.replace(/\s/g, "")}`,
+          });
+        } catch {
+          // Payment initiation may fail in dev mode, continue anyway
+          toast("Paiement en mode démonstration", { icon: "ℹ️" });
+        }
+      }
+
+      // Store completed order data for success page
+      sessionStorage.setItem(
+        "completedOrder",
+        JSON.stringify({
+          orderId: order.id,
+          orderNumber: order.orderNumber,
+          ...step1Data,
+          ...step2Data,
+          ...step3Data,
+          paymentMethod,
+          phoneNumber,
+          createdAt: order.createdAt,
+        }),
+      );
+
+      // Clear step data
+      sessionStorage.removeItem("orderItems");
+      sessionStorage.removeItem("orderAddresses");
+      sessionStorage.removeItem("orderFees");
+
+      router.push("/customer/new-order/success");
+    } catch (err) {
+      toast.error(getErrorMessage(err));
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

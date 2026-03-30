@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 import { useAuthStore } from "@/store/auth.store";
 import { usersApi } from "@/lib/api-client";
+import { getErrorMessage } from "@/lib/errors";
 import {
   MobileNav,
   Sidebar,
@@ -122,14 +123,13 @@ export default function CustomerProfilePage() {
 
         try {
           await usersApi.uploadAvatar(base64);
-          toast.success("Photo mise à jour");
+          toast.success("Photo de profil mise à jour");
         } catch (error) {
-          toast.error("Erreur lors du téléchargement");
+          toast.error(getErrorMessage(error));
         }
       };
-      reader.readAsDataURL(file);
-    } catch (error) {
-      toast.error("Erreur lors du téléchargement");
+    } catch (err) {
+      toast.error(getErrorMessage(err));
     }
   };
 
@@ -279,9 +279,9 @@ export default function CustomerProfilePage() {
         emailInvoices,
         promotions,
       });
-      toast.success("Préférences mises à jour");
+      toast.success("Préférences mises à jour avec succès!");
     } catch (error) {
-      toast.error("Erreur lors de la mise à jour");
+      toast.error(getErrorMessage(error));
     }
   };
 

@@ -273,9 +273,12 @@ async function main() {
   }
   console.log("✅ 5 pending orders created");
 
-  // Create payments for orders
+  // Create payments for orders (skip if already exists)
   const deliveredOrders = await prisma.order.findMany({
-    where: { status: OrderStatus.DELIVERED },
+    where: {
+      status: OrderStatus.DELIVERED,
+      payment: null,
+    },
     take: 10,
   });
   for (const order of deliveredOrders) {
@@ -290,7 +293,7 @@ async function main() {
       },
     });
   }
-  console.log("✅ Payments created");
+  console.log(`✅ ${deliveredOrders.length} payments created`);
 
   // Create comprehensive notifications for all types
   const allUsers = await prisma.user.findMany({ take: 10 });

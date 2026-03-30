@@ -1,379 +1,534 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   Package,
-  Bell,
-  ShoppingCart,
-  Download,
-  Calendar,
-  Trash2,
-  CheckCircle2,
-  User,
+  Truck,
   MapPin,
+  ChevronRight,
   Clock,
-  AlertCircle,
-  XCircle,
-  CheckCircle,
-  TrendingUp,
-  Wallet,
-  Activity,
-  Timer,
-  Zap,
+  Plus,
+  RefreshCw,
+  Download,
+  Trash2,
+  Repeat,
+  MoreVertical,
+  X,
 } from "lucide-react";
 import { useAuthStore } from "@/store/auth.store";
 import { ordersApi } from "@/lib/api-client";
+import { getErrorMessage } from "@/lib/errors";
 import {
   MobileNav,
   Sidebar,
   Header,
   PageFooter,
 } from "@/components/CustomerLayout";
+import { StatusBadge } from "@/components/shared/StatusBadge";
+import { FilterBar } from "@/components/shared/FilterBar";
+import { Pagination } from "@/components/shared/Pagination";
+import { StatCard } from "@/components/shared/StatCard";
+import { EmptyState, LoadingState } from "@/components/shared/EmptyState";
+import toast from "react-hot-toast";
 
-const formatCFA = (v: number) =>
-  new Intl.NumberFormat("fr-CM").format(v) + " XAF";
+interface OrderItem {
+  id: string;
+  name: string;
+  quantity: number;
+}
 
-const formatDate = (dateString: string) => {
-  const date = new Date(dateString);
-  return date.toLocaleDateString("fr-CM", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  });
+interface Order {
+  id: string;
+  orderNumber: string;
+  status: string;
+  type: string;
+  totalAmount: number;
+  deliveryFee: number;
+  deliveryStreet: string;
+  deliveryNeighborhood: string;
+  deliveryCity: string;
+  pickupStreet: string;
+  pickupNeighborhood: string;
+  createdAt: string;
+  deliveredAt?: string;
+  items?: OrderItem[];
+  payment?: {
+    status: string;
+    method: string;
+    amount: number;
+  };
+  rider?: {
+    user?: {
+      name: string;
+      phone: string;
+      avatar?: string;
+    };
+  };
+}
+
+const ORDER_STATUS_OPTIONS = [
+  { value: "PENDING", label: "En attente" },
+  { value: "CONFIRMED", label: "Confirmée" },
+  { value: "ASSIGNED", label: "Assignée" },
+  { value: "PICKED_UP", label: "Récupérée" },
+  { value: "IN_TRANSIT", label: "En route" },
+  { value: "DELIVERED", label: "Livré" },
+  { value: "CANCELLED", label: "Annulé" },
+];
+
+const ORDER_TYPE_LABELS: Record<string, string> = {
+  PARCEL: "Colis",
+  FOOD: "Repas",
+  GROCERY: "Courses",
+  COURIER: "Course express",
 };
 
-const formatTime = (dateString: string) => {
-  const date = new Date(dateString);
-  return date.toLocaleTimeString("fr-CM", {
+const ORDER_TYPE_ICONS: Record<string, React.ReactNode> = {
+  PARCEL: <Package className="w-5 h-5" />,
+  FOOD: <span className="text-lg">🍔</span>,
+  GROCERY: <span className="text-lg">🛒</span>,
+  COURIER: <Truck className="w-5 h-5" />,
+};
+
+function formatCurrency(amount: number): string {
+  return (
+    new Intl.NumberFormat("fr-CM", {
+      style: "decimal",
+      minimumFractionDigits: 0,
+    }).format(amount) + " XAF"
+  );
+}
+
+function formatDate(dateString: string): string {
+  return new Date(dateString).toLocaleDateString("fr-CM", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
+
+function formatTime(dateString: string): string {
+  return new Date(dateString).toLocaleTimeString("fr-CM", {
     hour: "2-digit",
     minute: "2-digit",
   });
-};
+}
 
-export default function OrdersHistoryPage() {
-  const { user } = useAuthStore();
+export default function CustomerOrdersPage() {
   const router = useRouter();
-  const [orders, setOrders] = useState<Array<any>>([]);
+  const { user } = useAuthStore();
+  const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<
-    "all" | "active" | "delivered" | "cancelled" | "last30"
-  >("all");
+  const [refreshing, setRefreshing] = useState(false);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [openMenu, setOpenMenu] = useState<string | null>(null);
+  const limit = 10;
+
+  // Filters
   const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+
+  // Stats
+  const [stats, setStats] = useState({
+    totalOrders: 0,
+    totalSpent: 0,
+    deliveredCount: 0,
+    avgTime: 0,
+  });
+
+  const hasActiveFilters = useMemo(
+    () => !!(search || statusFilter || dateFrom || dateTo),
+    [search, statusFilter, dateFrom, dateTo],
+  );
+
+  const clearFilters = () => {
+    setSearch("");
+    setStatusFilter("");
+    setDateFrom("");
+    setDateTo("");
+    setPage(1);
+  };
+
+  const fetchOrders = useCallback(
+    async (isRefresh = false) => {
+      if (isRefresh) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
+
+      try {
+        const params: {
+          page?: number;
+          limit?: number;
+          status?: string;
+          type?: string;
+          dateFrom?: string;
+          dateTo?: string;
+        } = { page, limit };
+        if (statusFilter) params.status = statusFilter;
+        if (dateFrom) params.dateFrom = dateFrom;
+        if (dateTo) params.dateTo = dateTo;
+
+        const res = await ordersApi.getMyOrders(params);
+        const data = res.data.data;
+
+        setOrders(data?.items || []);
+        setTotalPages(data?.meta?.totalPages || 1);
+        setTotal(data?.meta?.total || 0);
+
+        // Calculate stats from all orders
+        const allRes = await ordersApi.getMyOrders({ limit: 1000 });
+        const allOrders: Order[] = allRes.data.data?.items || [];
+
+        const deliveredOrders = allOrders.filter(
+          (o) => o.status === "DELIVERED",
+        );
+        const totalSpent = deliveredOrders.reduce(
+          (sum, o) => sum + (o.totalAmount || 0),
+          0,
+        );
+
+        setStats({
+          totalOrders: allOrders.length,
+          totalSpent,
+          deliveredCount: deliveredOrders.length,
+          avgTime: 28,
+        });
+      } catch (err) {
+        toast.error(getErrorMessage(err));
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    },
+    [page, statusFilter, dateFrom, dateTo],
+  );
 
   useEffect(() => {
-    ordersApi
-      .getMyOrders({ limit: 50 })
-      .then((r) => {
-        setOrders(r.data.data.items || []);
-      })
-      .catch(() => {
-        setOrders([]);
-      })
-      .finally(() => setLoading(false));
-  }, []);
+    fetchOrders();
+  }, [fetchOrders]);
 
-  const filteredOrders = orders
-    .filter((order) => {
-      // Apply search filter
-      if (search) {
-        const searchableFields = [
-          order.id,
-          order.orderNumber,
-          (order.deliveryNeighborhood || "") +
-            " " +
-            (order.deliveryStreet || ""),
-          order.status,
-        ]
-          .join(" ")
-          .toLowerCase();
-        return searchableFields.includes(search.toLowerCase());
-      }
+  // Delete order
+  const handleDeleteOrder = async (orderId: string) => {
+    if (!confirm("Voulez-vous vraiment annuler cette commande?")) return;
+    try {
+      await ordersApi.cancel(orderId, "Annulée par le client");
+      toast.success("Commande annulée");
+      fetchOrders(true);
+    } catch (err) {
+      toast.error(getErrorMessage(err));
+    }
+    setOpenMenu(null);
+  };
 
-      // Apply status filter
-      switch (filter) {
-        case "all":
-          return true;
-        case "active":
-          return !["DELIVERED", "CANCELLED", "FAILED"].includes(order.status);
-        case "delivered":
-          return order.status === "DELIVERED";
-        case "cancelled":
-          return order.status === "CANCELLED";
-        case "last30": {
-          const thirtyDaysAgo = new Date();
-          thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-          return new Date(order.createdAt) >= thirtyDaysAgo;
-        }
-        default:
-          return true;
-      }
-    })
-    .sort(
-      (a, b) =>
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+  // Reorder - redirect to Step 2 with pre-filled data
+  const handleReorder = (order: Order) => {
+    const orderData = {
+      type: order.type,
+      description: "",
+      weight: 1,
+      isFragile: false,
+      isRefrigerated: false,
+      isUrgent: false,
+    };
+
+    sessionStorage.setItem("orderItems", JSON.stringify(orderData));
+
+    // Pre-fill addresses
+    sessionStorage.setItem(
+      "orderAddresses",
+      JSON.stringify({
+        pickupStreet: order.pickupStreet || "",
+        pickupNeighborhood: order.pickupNeighborhood || "",
+        deliveryStreet: order.deliveryStreet || "",
+        deliveryNeighborhood: order.deliveryNeighborhood || "",
+        pickupContactName: "",
+        pickupContactPhone: "",
+        deliveryContactName: "",
+        deliveryContactPhone: "",
+        scheduleType: "now",
+      }),
     );
+
+    router.push("/customer/new-order/addresses");
+    setOpenMenu(null);
+  };
+
+  // Client-side search filter
+  const filteredOrders = useMemo(() => {
+    if (!search) return orders;
+    const term = search.toLowerCase();
+    return orders.filter(
+      (o) =>
+        o.orderNumber?.toLowerCase().includes(term) ||
+        o.deliveryStreet?.toLowerCase().includes(term) ||
+        o.deliveryNeighborhood?.toLowerCase().includes(term) ||
+        o.pickupStreet?.toLowerCase().includes(term),
+    );
+  }, [orders, search]);
+
+  const handleExport = () => {
+    const header = "N° Commande,Date,Statut,Montant,Adresse\n";
+    const rows = filteredOrders
+      .map(
+        (o) =>
+          `${o.orderNumber},${formatDate(o.createdAt)},${o.status},${o.totalAmount},"${o.deliveryStreet}, ${o.deliveryNeighborhood}"`,
+      )
+      .join("\n");
+    const blob = new Blob([header + rows], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `commandes-${new Date().toISOString().split("T")[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("Export CSV réussi");
+  };
 
   return (
     <div className="min-h-screen bg-[#f8faf7] text-[#191c1b]">
-      <Header title="Historique des Livraisons" />
+      <Header />
 
       <div className="flex pt-20">
         <Sidebar />
 
-        <main className="flex-1 overflow-y-auto px-6 md:px-12 py-10 pb-24">
-          <div className="max-w-screen-xl mx-auto">
-            <header className="mb-12 flex flex-col md:flex-row md:items-end justify-between gap-6">
-              <div>
-                <h1 className="text-4xl font-extrabold text-[#00503a] tracking-tight mb-2">
-                  Historique des Livraisons
-                </h1>
-                <p className="text-[#3f4944] max-w-2xl">
-                  Consultez l'état de vos envois passés et gérez vos
-                  facturations de logistique de précision à travers Yaoundé.
-                </p>
-              </div>
-              <div className="flex gap-3">
-                <Link
-                  href="/customer/orders/export"
-                  className="flex items-center gap-2 px-5 py-2.5 bg-[#f2f4f2] text-[#191c1b] font-semibold rounded-lg hover:bg-[#e7e9e6] transition-colors"
-                >
-                  <Download className="w-4 h-4" />
-                  Exporter PDF
-                </Link>
-              </div>
-            </header>
-
-            {/* Search & Filters Bar */}
-            <section className="mb-8 flex flex-wrap items-center gap-4">
-              <div className="flex-1 min-w-[300px] relative">
-                <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline">
-                  search
-                </span>
-                <input
-                  type="text"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Rechercher par ID, destination ou destinataire..."
-                  className="w-full pl-12 pr-4 py-3 bg-[#f2f4f2] border-none rounded-xl focus:ring-2 focus:ring-[#00503a]/20 text-[#191c1b] placeholder:text-[#6f7a73]"
-                />
-              </div>
-              <div className="flex items-center gap-2 bg-[#f2f4f2] px-2 py-1.5 rounded-xl">
-                <button
-                  onClick={() => setFilter("all")}
-                  className={`px-4 py-1.5 bg-white shadow-sm rounded-lg text-sm font-semibold text-[#191c1b] ${
-                    filter === "all" ? "bg-[#9ef4d0] text-[#002116]" : ""
-                  }`}
-                >
-                  Tous
-                </button>
-                <button
-                  onClick={() => setFilter("active")}
-                  className={`px-4 py-1.5 hover:bg-white/50 rounded-lg text-sm font-medium text-[#3f4944] ${
-                    filter === "active" ? "bg-[#9ef4d0] text-[#002116]" : ""
-                  }`}
-                >
-                  En cours
-                </button>
-                <button
-                  onClick={() => setFilter("delivered")}
-                  className={`px-4 py-1.5 hover:bg-white/50 rounded-lg text-sm font-medium text-[#3f4944] ${
-                    filter === "delivered" ? "bg-[#9ef4d0] text-[#002116]" : ""
-                  }`}
-                >
-                  Livré
-                </button>
-                <button
-                  onClick={() => setFilter("cancelled")}
-                  className={`px-4 py-1.5 hover:bg-white/50 rounded-lg text-sm font-medium text-[#3f4944] ${
-                    filter === "cancelled" ? "bg-[#9ef4d0] text-[#002116]" : ""
-                  }`}
-                >
-                  Annulé
-                </button>
-              </div>
+        <main className="flex-1 overflow-y-auto px-4 md:px-8 lg:px-12 py-6 pb-28 md:pb-24 max-w-6xl mx-auto w-full">
+          {/* Header */}
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-6">
+            <div>
+              <h1 className="text-2xl md:text-3xl font-extrabold text-[#00503a] tracking-tight">
+                Mes Commandes
+              </h1>
+              <p className="text-sm text-[#3f4944] mt-1">
+                Historique de vos livraisons TARA
+              </p>
+            </div>
+            <div className="flex items-center gap-3">
               <button
-                onClick={() => setFilter("last30")}
-                className="flex items-center gap-2 px-4 py-3 bg-[#f2f4f2] text-[#3f4944] font-medium rounded-xl"
+                onClick={() => fetchOrders(true)}
+                disabled={refreshing}
+                className="flex items-center gap-2 px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-50"
               >
-                <Calendar className="w-4 h-4" /> Derniers 30 jours
+                <RefreshCw
+                  className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`}
+                />
               </button>
-            </section>
-
-            {/* Data Table */}
-            <section className="bg-white rounded-2xl overflow-hidden shadow-sm">
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="bg-[#f2f4f2] border-none">
-                      <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-[#3f4944] font-label">
-                        Date
-                      </th>
-                      <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-[#3f4944] font-label">
-                        Order ID
-                      </th>
-                      <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-[#3f4944] font-label">
-                        Destination
-                      </th>
-                      <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-[#3f4944] font-label">
-                        Status
-                      </th>
-                      <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-[#3f4944] font-label">
-                        Total
-                      </th>
-                      <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-[#3f4944] font-label text-right">
-                        Actions
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[#00503a]/5">
-                    {loading ? (
-                      <tr>
-                        <td colSpan={6} className="text-center py-8">
-                          Chargement des historiques...
-                        </td>
-                      </tr>
-                    ) : filteredOrders.length === 0 ? (
-                      <tr>
-                        <td colSpan={6} className="text-center py-8">
-                          Aucun historique trouvé
-                        </td>
-                      </tr>
-                    ) : filteredOrders.length === 0 ? (
-                      <tr>
-                        <td colSpan={6} className="text-center py-8">
-                          Aucun historique trouvé
-                        </td>
-                      </tr>
-                    ) : (
-                      filteredOrders.map((order) => (
-                        <tr
-                          key={order.id}
-                          className="hover:bg-[#f2f4f2]/50 transition-colors"
-                        >
-                          <td className="px-6 py-5">
-                            <div className="flex flex-col">
-                              <span className="text-sm font-semibold text-[#191c1b]">
-                                {formatDate(order.createdAt)}
-                              </span>
-                              <span className="text-xs text-[#6f7a73]">
-                                {formatTime(order.createdAt)}
-                              </span>
-                            </div>
-                          </td>
-                          <td className="px-6 py-5">
-                            <span className="font-mono text-sm text-[#00503a] font-bold">
-                              #{order.orderNumber}
-                            </span>
-                          </td>
-                          <td className="px-6 py-5">
-                            <div className="flex items-center gap-3">
-                              <div className="p-2 bg-[#00503a]/10 rounded-lg">
-                                <MapPin className="w-4 h-4 text-[#00503a]" />
-                              </div>
-                              <div>
-                                <p className="text-sm font-medium text-[#191c1b]">
-                                  {order.deliveryNeighborhood}, Rue{" "}
-                                  {order.deliveryStreet}
-                                </p>
-                                <p className="text-xs text-[#6f7a73]">
-                                  Yaoundé
-                                </p>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-6 py-5">
-                            <span
-                              className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold ${getStatusBadgeClass(
-                                order.status,
-                              )} uppercase tracking-tight`}
-                            >
-                              {getStatusLabel(order.status)}
-                            </span>
-                          </td>
-                          <td className="px-6 py-5">
-                            <span className="text-sm font-bold text-[#191c1b]">
-                              {formatCFA(Number(order.totalAmount || 0))}
-                            </span>
-                          </td>
-                          <td className="px-6 py-5 text-right">
-                            <div className="flex gap-2">
-                              <Link
-                                href={`/customer/orders/${order.id}`}
-                                className="inline-flex items-center gap-2 px-4 py-2 bg-[#feb700] text-[#271900] rounded-lg font-bold text-xs uppercase tracking-wider hover:bg-[#ffba20] transition-all active:scale-95"
-                              >
-                                Récommander
-                              </Link>
-                              <button
-                                onClick={() => handleDeleteOrder(order.id)}
-                                className="inline-flex items-center gap-2 px-4 py-2 bg-[#ba1a1a] text-white rounded-lg font-bold text-xs uppercase tracking-wider hover:bg-[#c0392b] transition-all active:scale-95"
-                              >
-                                Supprimer
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </section>
-
-            {/* Stats Summary Section (Bento Style) */}
-            <section className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="bg-[#00503a] p-6 rounded-2xl text-white relative overflow-hidden group">
-                <div className="relative z-10">
-                  <p className="text-[#92e7c3] text-sm font-bold uppercase tracking-widest mb-2">
-                    Total Dépensé
-                  </p>
-                  <h3 className="text-3xl font-extrabold font-headline">
-                    145.200 XAF
-                  </h3>
-                  <p className="text-xs mt-4 opacity-80 flex items-center gap-1">
-                    <TrendingUp className="w-4 h-4 mr-1" /> +12% par rapport au
-                    mois dernier
-                  </p>
-                </div>
-                <div className="absolute -right-4 -bottom-4 opacity-10 group-hover:scale-110 transition-transform duration-500">
-                  <Wallet className="h-8 w-8" />
-                </div>
-              </div>
-              <div className="bg-[#feb700] p-6 rounded-2xl text-[#271900] relative overflow-hidden group">
-                <div className="relative z-10">
-                  <p className="text-[#6b4b00] text-sm font-bold uppercase tracking-widest mb-2">
-                    Livraisons Réussies
-                  </p>
-                  <h3 className="text-3xl font-extrabold font-headline">98%</h3>
-                  <p className="text-xs mt-4 opacity-80 flex items-center gap-1">
-                    <CheckCircle className="w-4 h-4 mr-1" /> Excellente
-                    fiabilité logistique
-                  </p>
-                </div>
-                <div className="absolute -right-4 -bottom-4 opacity-10 group-hover:scale-110 transition-transform duration-500">
-                  <Activity className="h-8 w-8" />
-                </div>
-              </div>
-              <div className="bg-[#e1e3e1] p-6 rounded-2xl text-[#191c1b] relative overflow-hidden group">
-                <div className="relative z-10">
-                  <p className="text-[#3f4944] text-sm font-bold uppercase tracking-widest mb-2">
-                    Temps Moyen
-                  </p>
-                  <h3 className="text-3xl font-extrabold font-headline">
-                    28 min
-                  </h3>
-                  <p className="text-xs mt-4 opacity-80 flex items-center gap-1">
-                    <Timer className="w-4 h-4 mr-1" /> Livraison urbaine
-                    ultra-rapide
-                  </p>
-                </div>
-                <div className="absolute -right-4 -bottom-4 opacity-10 group-hover:scale-110 transition-transform duration-500">
-                  <Zap className="h-8 w-8" />
-                </div>
-              </div>
-            </section>
+              <button
+                onClick={handleExport}
+                className="flex items-center gap-2 px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors"
+              >
+                <Download className="w-4 h-4" />
+                <span className="hidden sm:inline">CSV</span>
+              </button>
+              <Link
+                href="/customer/new-order"
+                className="flex items-center gap-2 px-4 py-2 bg-[#00503a] text-white rounded-xl text-sm font-bold hover:bg-[#006a4e] transition-colors shadow-sm"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Nouvelle</span>
+              </Link>
+            </div>
           </div>
+
+          {/* Stats */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+            <StatCard
+              title="Total Commandes"
+              value={stats.totalOrders}
+              icon={<Package className="w-5 h-5" />}
+              color="blue"
+            />
+            <StatCard
+              title="Total Dépensé"
+              value={formatCurrency(stats.totalSpent)}
+              icon={<Truck className="w-5 h-5" />}
+              color="green"
+            />
+            <StatCard
+              title="Livrées"
+              value={stats.deliveredCount}
+              icon={<Package className="w-5 h-5" />}
+              color="green"
+            />
+            <StatCard
+              title="Temps Moyen"
+              value={`${stats.avgTime} min`}
+              icon={<Clock className="w-5 h-5" />}
+              color="amber"
+            />
+          </div>
+
+          {/* Filters */}
+          <div className="mb-6">
+            <FilterBar
+              searchValue={search}
+              onSearchChange={setSearch}
+              searchPlaceholder="Rechercher par N°, adresse..."
+              dateFrom={dateFrom}
+              dateTo={dateTo}
+              onDateFromChange={setDateFrom}
+              onDateToChange={setDateTo}
+              statusOptions={ORDER_STATUS_OPTIONS}
+              statusValue={statusFilter}
+              onStatusChange={setStatusFilter}
+              statusLabel="Statut"
+              onClear={clearFilters}
+              hasActiveFilters={hasActiveFilters}
+            />
+          </div>
+
+          {/* Content */}
+          {loading ? (
+            <LoadingState />
+          ) : filteredOrders.length === 0 ? (
+            <EmptyState
+              title={hasActiveFilters ? "Aucun résultat" : "Aucune commande"}
+              description={
+                hasActiveFilters
+                  ? "Aucune commande ne correspond aux filtres actuels."
+                  : "Vous n'avez pas encore passé de commande."
+              }
+              icon={hasActiveFilters ? "search" : "package"}
+              action={
+                hasActiveFilters
+                  ? { label: "Effacer les filtres", onClick: clearFilters }
+                  : {
+                      label: "Nouvelle commande",
+                      onClick: () =>
+                        (window.location.href = "/customer/new-order"),
+                    }
+              }
+            />
+          ) : (
+            <div className="space-y-3">
+              {filteredOrders.map((order) => (
+                <div
+                  key={order.id}
+                  className="bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all p-4 md:p-5"
+                >
+                  <div className="flex items-start gap-4">
+                    {/* Order Type Icon */}
+                    <div className="w-12 h-12 rounded-xl bg-[#00503a]/5 flex items-center justify-center shrink-0 text-[#00503a]">
+                      {ORDER_TYPE_ICONS[order.type] || (
+                        <Package className="w-5 h-5" />
+                      )}
+                    </div>
+
+                    {/* Order Info */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-2 mb-1">
+                        <Link href={`/customer/orders/${order.id}`}>
+                          <h3 className="font-bold text-sm text-[#191c1b] hover:text-[#00503a]">
+                            {order.orderNumber || `#${order.id.slice(0, 8)}`}
+                          </h3>
+                          <p className="text-xs text-slate-500">
+                            {ORDER_TYPE_LABELS[order.type] || order.type}
+                          </p>
+                        </Link>
+                        <div className="flex items-center gap-2">
+                          <StatusBadge status={order.status} />
+                          {/* Actions Menu */}
+                          <div className="relative">
+                            <button
+                              onClick={(e) => {
+                                e.preventDefault();
+                                setOpenMenu(
+                                  openMenu === order.id ? null : order.id,
+                                );
+                              }}
+                              className="p-1 hover:bg-slate-100 rounded-lg transition-colors"
+                            >
+                              <MoreVertical className="w-4 h-4 text-slate-400" />
+                            </button>
+                            {openMenu === order.id && (
+                              <>
+                                <div
+                                  className="fixed inset-0 z-10"
+                                  onClick={() => setOpenMenu(null)}
+                                />
+                                <div className="absolute right-0 top-8 z-20 bg-white rounded-xl shadow-lg border border-slate-100 py-2 min-w-[160px]">
+                                  <Link
+                                    href={`/customer/orders/${order.id}`}
+                                    className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+                                    onClick={() => setOpenMenu(null)}
+                                  >
+                                    <Package className="w-4 h-4" />
+                                    Voir détails
+                                  </Link>
+                                  <button
+                                    onClick={() => handleReorder(order)}
+                                    className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors w-full text-left"
+                                  >
+                                    <Repeat className="w-4 h-4" />
+                                    Recommender
+                                  </button>
+                                  {(order.status === "PENDING" ||
+                                    order.status === "CONFIRMED") && (
+                                    <button
+                                      onClick={() =>
+                                        handleDeleteOrder(order.id)
+                                      }
+                                      className="flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors w-full text-left"
+                                    >
+                                      <Trash2 className="w-4 h-4" />
+                                      Annuler
+                                    </button>
+                                  )}
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-1 text-xs text-slate-500 mb-2">
+                        <MapPin className="w-3 h-3 shrink-0" />
+                        <span className="truncate">
+                          {order.deliveryStreet}, {order.deliveryNeighborhood}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                          <span className="text-xs text-slate-400">
+                            {formatDate(order.createdAt)} ·{" "}
+                            {formatTime(order.createdAt)}
+                          </span>
+                          {order.rider?.user && (
+                            <span className="text-xs text-[#00503a] font-medium">
+                              {order.rider.user.name}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-sm text-[#191c1b]">
+                            {formatCurrency(order.totalAmount)}
+                          </span>
+                          <ChevronRight className="w-4 h-4 text-slate-300" />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+
+              {/* Pagination */}
+              <Pagination
+                currentPage={page}
+                totalPages={totalPages}
+                total={total}
+                limit={limit}
+                onPageChange={setPage}
+              />
+            </div>
+          )}
         </main>
       </div>
 
@@ -381,56 +536,4 @@ export default function OrdersHistoryPage() {
       <MobileNav />
     </div>
   );
-}
-
-function getStatusBadgeClass(status: string) {
-  switch (status) {
-    case "DELIVERED":
-      return "bg-[#9ef4d0] text-[#002116]";
-    case "PICKED_UP":
-    case "IN_TRANSIT":
-      return "bg-[#feb700] text-[#271900]";
-    case "PENDING":
-    case "CONFIRMED":
-    case "ASSIGNED":
-      return "bg-[#f2f4f2] text-[#3f4944]";
-    case "CANCELLED":
-    case "FAILED":
-      return "bg-[#ba1a1a] text-white";
-    default:
-      return "bg-[#f2f4f2] text-[#3f4944]";
-  }
-}
-
-function getStatusLabel(status: string) {
-  switch (status) {
-    case "PENDING":
-      return "En attente";
-    case "CONFIRMED":
-      return "Confirmée";
-    case "ASSIGNED":
-      return "Assigné";
-    case "PICKED_UP":
-      return "Récupéré";
-    case "IN_TRANSIT":
-      return "En livraison";
-    case "DELIVERED":
-      return "Livré";
-    case "CANCELLED":
-      return "Annulé";
-    case "FAILED":
-      return "Échoué";
-    default:
-      return status;
-  }
-}
-
-function handleDeleteOrder(orderId: string) {
-  if (window.confirm("Êtes-vous sûr de vouloir supprimer cet historique ?")) {
-    // In a real app, this would call the API
-    // ordersApi.deleteOrder(orderId);
-    // For now, we'll just show a toast
-    // toast.success("Historique supprimé");
-    console.log("Would delete order:", orderId);
-  }
 }

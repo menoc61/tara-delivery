@@ -31,8 +31,8 @@ import {
 const ORDER_TYPES = [
   { v: "FOOD", label: "Repas", emoji: "🍔", desc: "Chaud ou froid" },
   { v: "PARCEL", label: "Colis", emoji: "📦", desc: "Documents, Boîtes" },
-  { v: "PHARMACY", label: "Pharmacie", emoji: "💊", desc: "Urgences" },
-  { v: "OTHER", label: "Autre", emoji: "📋", desc: "Sur mesure" },
+  { v: "GROCERY", label: "Courses", emoji: "🛒", desc: "Supermarché, Marché" },
+  { v: "COURIER", label: "Express", emoji: "⚡", desc: "Course rapide" },
 ];
 
 const formatCFA = (v: number) =>

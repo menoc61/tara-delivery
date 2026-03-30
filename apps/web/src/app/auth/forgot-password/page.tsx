@@ -8,6 +8,7 @@ import { ArrowLeft, Loader2, Mail, Package, CheckCircle } from "lucide-react";
 import toast from "react-hot-toast";
 import { forgotPasswordSchema } from "@tara/zod-schemas";
 import { authApi } from "@/lib/api-client";
+import { getErrorMessage } from "@/lib/errors";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";

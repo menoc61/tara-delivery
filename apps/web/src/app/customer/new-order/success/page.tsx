@@ -5,31 +5,17 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   Package,
-  Bell,
-  Building2,
   CheckCircle,
   MapPin,
   Truck,
-  Download,
   Home,
-  MessageCircle,
   ChevronRight,
+  Bell,
 } from "lucide-react";
 import { useAuthStore } from "@/store/auth.store";
 
 const formatCFA = (v: number) =>
   new Intl.NumberFormat("fr-CM").format(v) + " XAF";
-
-function generateOrderNumber(): string {
-  const now = new Date();
-  const yy = String(now.getFullYear()).slice(-2);
-  const mm = String(now.getMonth() + 1).padStart(2, "0");
-  const dd = String(now.getDate()).padStart(2, "0");
-  const rand = Math.floor(Math.random() * 10000)
-    .toString()
-    .padStart(4, "0");
-  return `TD${yy}${mm}${dd}${rand}`;
-}
 
 export default function NewOrderStep5() {
   const { user } = useAuthStore();
@@ -49,8 +35,9 @@ export default function NewOrderStep5() {
 
   if (!orderData) return null;
 
-  const orderNumber = orderData.orderNumber || generateOrderNumber();
-  const eta = orderData.eta || "14:30 - 15:15";
+  const orderNumber =
+    (orderData.orderNumber as string) || `TD${Date.now().toString().slice(-8)}`;
+  const orderId = orderData.orderId as string;
 
   return (
     <div className="min-h-screen bg-[#f8faf7] text-[#191c1b]">
@@ -116,7 +103,7 @@ export default function NewOrderStep5() {
                   </h2>
                 </div>
                 <button className="flex items-center gap-2 text-[#00503a] font-bold hover:underline transition-all">
-                  <Download className="w-5 h-5" />
+                  <span className="text-lg">📄</span>
                   Télécharger le reçu
                 </button>
               </div>
@@ -134,10 +121,10 @@ export default function NewOrderStep5() {
                     <p className="text-[#3f4944]">
                       {orderData.type === "FOOD"
                         ? "Repas"
-                        : orderData.type === "PHARMACY"
-                          ? "Pharmacie"
-                          : orderData.type === "OTHER"
-                            ? "Autre"
+                        : orderData.type === "GROCERY"
+                          ? "Courses"
+                          : orderData.type === "COURIER"
+                            ? "Express"
                             : "Colis"}{" "}
                       -{orderData.isUrgent ? " Express" : " Standard"}
                     </p>
@@ -192,7 +179,7 @@ export default function NewOrderStep5() {
                     <p className="text-[#3f4944]">
                       Arrivée prévue entre{" "}
                       <span className="font-bold text-[#191c1b]">
-                        {String(eta)}
+                        25-45 minutes
                       </span>
                     </p>
                   </div>
@@ -292,7 +279,7 @@ export default function NewOrderStep5() {
 
             {/* Help Card */}
             <div className="bg-[#feb700]/10 p-6 rounded-xl flex gap-4">
-              <MessageCircle className="w-8 h-8 text-[#7c5800]" />
+              <span className="text-3xl">💬</span>
               <div>
                 <h4 className="font-bold text-[#6b4b00]">Une question ?</h4>
                 <p className="text-xs text-[#6b4b00]/80 mt-1">
