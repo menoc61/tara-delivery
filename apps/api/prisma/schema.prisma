@@ -137,6 +137,11 @@ model User {
   ratings       Rating[]
   savedAddresses SavedAddress[]
   passwordResets PasswordReset[]
+  
+  // Chat relations
+  conversationsAsUser1 Conversation[] @relation("ConversationUser1")
+  conversationsAsUser2 Conversation[] @relation("ConversationUser2")
+  messages             Message[]
 
   @@map("users")
   @@index([email])
@@ -230,6 +235,7 @@ model Order {
   payment           Payment?
   statusLogs        DeliveryStatusLog[]
   rating            Rating?
+  conversations     Conversation[]
   
   @@map("orders")
   @@index([userId])
@@ -376,6 +382,65 @@ model SavedAddress {
 
   @@map("saved_addresses")
   @@index([userId])
+}
+
+enum ConversationType {
+  DELIVERY
+  SUPPORT
+}
+
+enum MessageType {
+  TEXT
+  IMAGE
+  LOCATION
+  SYSTEM
+}
+
+model Conversation {
+  id        String           @id @default(uuid())
+  type      ConversationType @default(DELIVERY)
+  user1Id   String
+  user1     User             @relation("ConversationUser1", fields: [user1Id], references: [id])
+  user2Id   String
+  user2     User             @relation("ConversationUser2", fields: [user2Id], references: [id])
+  orderId   String?
+  order     Order?           @relation(fields: [orderId], references: [id])
+  
+  user1Unread Int           @default(0)
+  user2Unread Int           @default(0)
+  lastMessageAt DateTime?   @default(now())
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  messages  Message[]
+
+  @@map("conversations")
+  @@index([user1Id])
+  @@index([user2Id])
+  @@index([orderId])
+  @@index([type])
+}
+
+model Message {
+  id             String      @id @default(uuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  senderId       String
+  sender         User        @relation(fields: [senderId], references: [id])
+  type           MessageType @default(TEXT)
+  content        String
+  imageUrl       String?
+  locationLat    Float?
+  locationLng    Float?
+  isRead         Boolean     @default(false)
+  createdAt      DateTime    @default(now())
+
+  @@map("messages")
+  @@index([conversationId])
+  @@index([senderId])
+  @@index([createdAt])
 }
 
 model PasswordReset {

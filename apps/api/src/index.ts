@@ -23,6 +23,7 @@ import paymentRoutes from "./modules/payments/payment.routes";
 import notificationRoutes from "./modules/notifications/notification.routes";
 import adminRoutes from "./modules/admin/admin.routes";
 import webhookRoutes from "./modules/payments/webhook.routes";
+import chatRoutes from "./modules/chat/chat.routes";
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -110,6 +111,7 @@ app.use("/api/payments", paymentRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/webhooks", webhookRoutes);
+app.use("/api/chat", chatRoutes);
 
 // ── Error Handlers ────────────────────────────────────────
 app.use(notFoundHandler);

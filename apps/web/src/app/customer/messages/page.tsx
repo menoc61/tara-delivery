@@ -1,514 +1,539 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, Suspense } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
-  Package,
-  Bell,
   Search,
   Send,
-  Plus,
-  Image,
   Phone,
-  Info,
-  MapPin,
+  User,
+  ArrowLeft,
   MessageCircle,
+  Package,
+  MapPin,
   Headphones,
+  Mic,
+  Image as ImageIcon,
+  Smile,
+  MoreVertical,
 } from "lucide-react";
 import { useAuthStore } from "@/store/auth.store";
-import { ordersApi } from "@/lib/api-client";
+import { chatApi, ordersApi } from "@/lib/api-client";
+import { getErrorMessage } from "@/lib/errors";
 import {
   MobileNav,
   Sidebar,
   Header,
   PageFooter,
 } from "@/components/CustomerLayout";
+import toast from "react-hot-toast";
 
 interface Message {
   id: string;
   senderId: string;
-  senderName: string;
   content: string;
-  type: "text" | "image" | "location";
-  timestamp: string;
-  isRead: boolean;
+  type: string;
+  imageUrl?: string;
+  locationLat?: number;
+  locationLng?: number;
+  createdAt: string;
+  sender?: { id: string; name: string; avatar?: string };
 }
 
 interface Conversation {
   id: string;
-  type: "rider" | "support";
-  name: string;
-  avatar?: string;
+  type: string;
+  user1Id: string;
+  user2Id: string;
   orderId?: string;
-  orderNumber?: string;
-  lastMessage: string;
-  lastMessageTime: string;
+  order?: { id: string; orderNumber: string; status: string };
+  otherUser?: { id: string; name: string; avatar?: string };
   unreadCount: number;
-  isOnline: boolean;
-  messages: Message[];
+  lastMessage?: Message;
+  lastMessageAt?: string;
+  user1?: { id: string; name: string; avatar?: string };
+  user2?: { id: string; name: string; avatar?: string };
 }
 
-export default function CustomerMessagesPage() {
+function ChatContent() {
   const { user } = useAuthStore();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const orderIdParam = searchParams.get("orderId");
+
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedConv, setSelectedConv] = useState<string | null>(null);
+  const [selectedConvId, setSelectedConvId] = useState<string | null>(null);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
+  const [sendingMessage, setSendingMessage] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Dummy conversations for display
-  const dummyConversations: Conversation[] = [
-    {
-      id: "1",
-      type: "rider",
-      name: "Jean-Paul (Coursier)",
-      orderId: "1",
-      orderNumber: "#TR-9921",
-      lastMessage: "Je suis devant l'immeuble...",
-      lastMessageTime: "12:45",
-      unreadCount: 0,
-      isOnline: true,
-      messages: [
-        {
-          id: "1",
-          senderId: "rider1",
-          senderName: "Jean-Paul",
-          content:
-            "Bonjour ! Je suis en route pour récupérer votre colis à Bastos. Je devrais être là dans 10 minutes.",
-          type: "text",
-          timestamp: "12:30",
-          isRead: true,
-        },
-        {
-          id: "2",
-          senderId: "customer1",
-          senderName: user?.name || "Vous",
-          content:
-            "Parfait Jean-Paul. Le code d'entrée est le 2408. Je vous attends devant le portail noir.",
-          type: "text",
-          timestamp: "12:32",
-          isRead: true,
-        },
-        {
-          id: "3",
-          senderId: "rider1",
-          senderName: "Jean-Paul",
-          content: "C'est bien ce colis à livrer ?",
-          type: "image",
-          timestamp: "12:40",
-          isRead: true,
-        },
-        {
-          id: "4",
-          senderId: "customer1",
-          senderName: user?.name || "Vous",
-          content: "Ma position exacte pour vous aider.",
-          type: "location",
-          timestamp: "12:43",
-          isRead: true,
-        },
-        {
-          id: "5",
-          senderId: "rider1",
-          senderName: "Jean-Paul",
-          content: "Entendu, je suis devant l'immeuble avec le portail noir.",
-          type: "text",
-          timestamp: "12:45",
-          isRead: true,
-        },
-      ],
-    },
-    {
-      id: "2",
-      type: "support",
-      name: "Support Tara",
-      lastMessage: "Votre ticket #829 est résolu.",
-      lastMessageTime: "Hier",
-      unreadCount: 1,
-      isOnline: true,
-      messages: [
-        {
-          id: "1",
-          senderId: "support1",
-          senderName: "Support Tara",
-          content: "Bonjour ! Comment pouvons-nous vous aider aujourd'hui ?",
-          type: "text",
-          timestamp: "Hier, 14:30",
-          isRead: true,
-        },
-        {
-          id: "2",
-          senderId: "customer1",
-          senderName: user?.name || "Vous",
-          content: "J'ai un problème avec ma livraison #TR-8921.",
-          type: "text",
-          timestamp: "Hier, 14:32",
-          isRead: true,
-        },
-        {
-          id: "3",
-          senderId: "support1",
-          senderName: "Support Tara",
-          content: "Votre ticket #829 est résolu.",
-          type: "text",
-          timestamp: "Hier, 15:00",
-          isRead: false,
-        },
-      ],
-    },
-    {
-      id: "3",
-      type: "rider",
-      name: "Marie-Noëlle",
-      lastMessage: "Merci pour la livraison rapide !",
-      lastMessageTime: "Lun",
-      unreadCount: 0,
-      isOnline: false,
-      messages: [
-        {
-          id: "1",
-          senderId: "rider2",
-          senderName: "Marie-Noëlle",
-          content: "Votre colis est arrivé avec succès !",
-          type: "text",
-          timestamp: "Lun, 16:45",
-          isRead: true,
-        },
-        {
-          id: "2",
-          senderId: "customer1",
-          senderName: user?.name || "Vous",
-          content: "Merci pour la livraison rapide !",
-          type: "text",
-          timestamp: "Lun, 16:50",
-          isRead: true,
-        },
-      ],
-    },
-  ];
-
+  // Fetch conversations
   useEffect(() => {
-    // Load conversations
-    ordersApi
-      .getMyOrders({ limit: 20 })
-      .then((r) => {
-        const orders: Record<string, unknown>[] = r.data.data.items || [];
-        // Create conversations from orders with riders
-        setConversations(dummyConversations);
-        if (dummyConversations.length > 0) {
-          setSelectedConv(dummyConversations[0].id);
+    const fetchConversations = async () => {
+      try {
+        const res = await chatApi.getConversations();
+        setConversations(res.data.data || []);
+
+        // Auto-select conversation if orderId provided
+        if (orderIdParam) {
+          const existing = (res.data.data || []).find(
+            (c: Conversation) => c.orderId === orderIdParam,
+          );
+          if (existing) {
+            setSelectedConvId(existing.id);
+          } else {
+            // Create new conversation for this order
+            try {
+              const convRes = await chatApi.getRiderConversation(orderIdParam);
+              if (convRes.data.data) {
+                setConversations((prev) => [convRes.data.data, ...prev]);
+                setSelectedConvId(convRes.data.data.id);
+              }
+            } catch {
+              toast("Pas de livreur assigné à cette commande", { icon: "ℹ️" });
+            }
+          }
         }
-      })
-      .catch(() => {
-        setConversations(dummyConversations);
-        if (dummyConversations.length > 0) {
-          setSelectedConv(dummyConversations[0].id);
-        }
-      })
-      .finally(() => setLoading(false));
-  }, []);
-
-  const selectedConversation = conversations.find((c) => c.id === selectedConv);
-
-  const sendMessage = () => {
-    if (!newMessage.trim() || !selectedConversation) return;
-
-    const newMsg: Message = {
-      id: Date.now().toString(),
-      senderId: "customer1",
-      senderName: user?.name || "Vous",
-      content: newMessage,
-      type: "text",
-      timestamp: new Date().toLocaleTimeString("fr-FR", {
-        hour: "2-digit",
-        minute: "2-digit",
-      }),
-      isRead: false,
+      } catch (err) {
+        toast.error(getErrorMessage(err));
+      } finally {
+        setLoading(false);
+      }
     };
 
-    setConversations((prev) =>
-      prev.map((conv) =>
-        conv.id === selectedConv
-          ? {
-              ...conv,
-              messages: [...conv.messages, newMsg],
-              lastMessage: newMessage,
-              lastMessageTime: "À l'instant",
-            }
-          : conv,
-      ),
-    );
-    setNewMessage("");
+    fetchConversations();
+  }, [orderIdParam]);
 
-    // Scroll to bottom
-    setTimeout(() => {
-      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    }, 100);
+  // Fetch messages when conversation selected
+  useEffect(() => {
+    if (!selectedConvId) return;
+
+    const fetchMessages = async () => {
+      try {
+        const res = await chatApi.getMessages(selectedConvId);
+        setMessages(res.data.data?.messages || []);
+
+        // Mark as read
+        await chatApi.markAsRead(selectedConvId);
+        setConversations((prev) =>
+          prev.map((c) =>
+            c.id === selectedConvId ? { ...c, unreadCount: 0 } : c,
+          ),
+        );
+      } catch (err) {
+        toast.error(getErrorMessage(err));
+      }
+    };
+
+    fetchMessages();
+
+    // Poll for new messages every 3 seconds
+    const interval = setInterval(fetchMessages, 3000);
+    return () => clearInterval(interval);
+  }, [selectedConvId]);
+
+  // Auto-scroll to bottom
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  const handleSend = async () => {
+    if (!newMessage.trim() || !selectedConvId || sendingMessage) return;
+
+    setSendingMessage(true);
+    try {
+      const res = await chatApi.sendMessage(selectedConvId, {
+        content: newMessage,
+        type: "TEXT",
+      });
+
+      const sentMessage = res.data.data;
+      setMessages((prev) => [...prev, sentMessage]);
+      setConversations((prev) =>
+        prev.map((c) =>
+          c.id === selectedConvId
+            ? {
+                ...c,
+                lastMessage: sentMessage,
+                lastMessageAt: sentMessage.createdAt,
+              }
+            : c,
+        ),
+      );
+      setNewMessage("");
+    } catch (err) {
+      toast.error(getErrorMessage(err));
+    } finally {
+      setSendingMessage(false);
+    }
   };
 
-  const filteredConversations = conversations.filter((conv) =>
-    conv.name.toLowerCase().includes(searchQuery.toLowerCase()),
-  );
+  const handleShareLocation = async () => {
+    if (!selectedConvId) return;
+
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        async (pos) => {
+          const { latitude, longitude } = pos.coords;
+          try {
+            const res = await chatApi.sendMessage(selectedConvId, {
+              content: `📍 Position partagée: https://maps.google.com/?q=${latitude},${longitude}`,
+              type: "LOCATION",
+              locationLat: latitude,
+              locationLng: longitude,
+            });
+            setMessages((prev) => [...prev, res.data.data]);
+          } catch (err) {
+            toast.error(getErrorMessage(err));
+          }
+        },
+        () => toast.error("Impossible d'accéder à la position"),
+      );
+    }
+  };
+
+  const selectedConv = conversations.find((c) => c.id === selectedConvId);
+  const otherUser =
+    selectedConv?.otherUser || selectedConv?.user1?.id === user?.id
+      ? selectedConv?.user2
+      : selectedConv?.user1;
+
+  const filteredConversations = searchQuery
+    ? conversations.filter((c) => {
+        const name = (
+          c.otherUser?.name ||
+          c.user1?.name ||
+          c.user2?.name ||
+          ""
+        ).toLowerCase();
+        const orderNum = (c.order?.orderNumber || "").toLowerCase();
+        return (
+          name.includes(searchQuery.toLowerCase()) ||
+          orderNum.includes(searchQuery.toLowerCase())
+        );
+      })
+    : conversations;
 
   return (
-    <div className="min-h-screen bg-[#f8faf7] text-[#191c1b]">
-      <Header title="Messages" />
+    <div className="flex-1 flex overflow-hidden h-[calc(100vh-5rem)]">
+      {/* Conversation List */}
+      <div
+        className={`${
+          selectedConvId ? "hidden md:flex" : "flex"
+        } flex-col w-full md:w-80 lg:w-96 border-r border-slate-200 bg-white`}
+      >
+        {/* Header */}
+        <div className="p-4 border-b border-slate-100">
+          <h2 className="text-lg font-bold text-[#00503a] mb-3">Messages</h2>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Rechercher..."
+              className="w-full pl-10 pr-4 py-2.5 bg-[#f2f4f2] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#00503a]/20"
+            />
+          </div>
+        </div>
 
-      <div className="flex h-screen pt-20 overflow-hidden">
-        <Sidebar />
+        {/* Support Button */}
+        <button
+          onClick={async () => {
+            try {
+              const res = await chatApi.getSupportConversation();
+              const conv = res.data.data;
+              setConversations((prev) => {
+                if (prev.find((c) => c.id === conv.id)) return prev;
+                return [conv, ...prev];
+              });
+              setSelectedConvId(conv.id);
+            } catch (err) {
+              toast.error(getErrorMessage(err));
+            }
+          }}
+          className="m-3 flex items-center gap-3 p-3 bg-[#00503a]/5 rounded-xl hover:bg-[#00503a]/10 transition-colors"
+        >
+          <div className="w-10 h-10 rounded-full bg-[#00503a] flex items-center justify-center">
+            <Headphones className="w-5 h-5 text-white" />
+          </div>
+          <div className="flex-1 text-left">
+            <p className="font-bold text-sm text-[#00503a]">Support TARA</p>
+            <p className="text-xs text-slate-500">
+              Contactez le support client
+            </p>
+          </div>
+        </button>
 
-        {/* Main Content: Message Center */}
-        <main className="flex-1 flex overflow-hidden bg-white">
-          {/* Conversations List */}
-          <section className="w-full md:w-80 lg:w-96 flex flex-col border-r-0 bg-[#f2f4f2] border-none">
-            <div className="p-6">
-              <h1 className="text-2xl font-extrabold mb-4 tracking-tight">
-                Messages
-              </h1>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[#6f7a73] w-5 h-5" />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 bg-white border-none rounded-xl focus:ring-2 focus:ring-[#00503a] shadow-sm text-sm"
-                  placeholder="Rechercher une discussion..."
-                />
-              </div>
+        {/* Conversation List */}
+        <div className="flex-1 overflow-y-auto">
+          {loading ? (
+            <div className="p-4 space-y-3">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="flex items-center gap-3 p-3">
+                  <div className="w-12 h-12 rounded-full bg-slate-200 animate-pulse" />
+                  <div className="flex-1">
+                    <div className="h-4 w-24 bg-slate-200 rounded animate-pulse mb-2" />
+                    <div className="h-3 w-32 bg-slate-200 rounded animate-pulse" />
+                  </div>
+                </div>
+              ))}
             </div>
-
-            <div className="flex-1 overflow-y-auto px-4 space-y-2 pb-8">
-              {loading ? (
-                <div className="text-center py-8 text-[#6f7a73]">
-                  Chargement...
-                </div>
-              ) : filteredConversations.length === 0 ? (
-                <div className="text-center py-8 text-[#6f7a73]">
-                  Aucune conversation
-                </div>
-              ) : (
-                filteredConversations.map((conv) => (
-                  <div
-                    key={conv.id}
-                    onClick={() => setSelectedConv(conv.id)}
-                    className={`p-4 rounded-2xl flex gap-4 cursor-pointer transition-colors ${
-                      selectedConv === conv.id
-                        ? "bg-[#9ef4d0]"
-                        : "hover:bg-[#e7e9e6]"
-                    }`}
-                  >
-                    <div className="relative">
-                      {conv.type === "rider" ? (
-                        <div className="w-12 h-12 rounded-full bg-[#00503a]/10 flex items-center justify-center">
-                          <Package className="w-6 h-6 text-[#00503a]" />
-                        </div>
+          ) : filteredConversations.length === 0 ? (
+            <div className="p-8 text-center">
+              <MessageCircle className="w-12 h-12 mx-auto text-slate-300 mb-4" />
+              <p className="text-slate-500">Aucune conversation</p>
+            </div>
+          ) : (
+            filteredConversations.map((conv) => {
+              const displayUser =
+                conv.otherUser ||
+                (conv.user1Id === user?.id ? conv.user2 : conv.user1);
+              return (
+                <button
+                  key={conv.id}
+                  onClick={() => setSelectedConvId(conv.id)}
+                  className={`w-full flex items-center gap-3 p-4 hover:bg-[#f2f4f2]/50 transition-colors text-left ${
+                    selectedConvId === conv.id ? "bg-[#9ef4d0]/20" : ""
+                  }`}
+                >
+                  <div className="relative">
+                    <div className="w-12 h-12 rounded-full bg-[#00503a]/10 flex items-center justify-center overflow-hidden">
+                      {displayUser?.avatar ? (
+                        <img
+                          src={displayUser.avatar}
+                          alt=""
+                          className="w-full h-full object-cover"
+                        />
                       ) : (
-                        <div className="w-12 h-12 rounded-full bg-[#feb700] flex items-center justify-center text-[#271900]">
-                          <Headphones className="w-6 h-6" />
-                        </div>
-                      )}
-                      {conv.isOnline && (
-                        <div className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-white rounded-full"></div>
+                        <User className="w-6 h-6 text-[#00503a]" />
                       )}
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex justify-between items-baseline">
-                        <h3
-                          className={`font-bold truncate ${selectedConv === conv.id ? "text-[#002116]" : "text-[#191c1b]"}`}
-                        >
-                          {conv.name}
-                        </h3>
-                        <span
-                          className={`text-[10px] ${selectedConv === conv.id ? "text-[#002116] opacity-60" : "text-[#6f7a73]"}`}
-                        >
-                          {conv.lastMessageTime}
-                        </span>
-                      </div>
-                      <p
-                        className={`text-sm truncate ${selectedConv === conv.id ? "text-[#00503a] font-semibold" : "text-[#6f7a73]"}`}
-                      >
-                        {conv.lastMessage}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between mb-0.5">
+                      <h3 className="font-semibold text-sm text-[#191c1b] truncate">
+                        {displayUser?.name || "Utilisateur"}
+                      </h3>
+                      <span className="text-[10px] text-slate-400">
+                        {conv.lastMessageAt
+                          ? new Date(conv.lastMessageAt).toLocaleTimeString(
+                              "fr-CM",
+                              {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              },
+                            )
+                          : ""}
+                      </span>
+                    </div>
+                    {conv.order?.orderNumber && (
+                      <p className="text-xs text-[#00503a] font-medium mb-0.5">
+                        {conv.order.orderNumber}
                       </p>
-                    </div>
-                    {conv.unreadCount > 0 && (
-                      <div className="w-2 h-2 rounded-full bg-[#7c5800] self-center"></div>
                     )}
+                    <p className="text-xs text-slate-500 truncate">
+                      {conv.lastMessage?.content || "Pas de messages"}
+                    </p>
                   </div>
-                ))
-              )}
-            </div>
-          </section>
-
-          {/* Chat Window */}
-          <section className="hidden md:flex flex-1 flex-col bg-white">
-            {selectedConversation ? (
-              <>
-                {/* Chat Header */}
-                <div className="h-20 px-8 flex items-center justify-between border-b-0 bg-white">
-                  <div className="flex items-center gap-4">
-                    {selectedConversation.type === "rider" ? (
-                      <div className="w-10 h-10 rounded-full bg-[#00503a]/10 flex items-center justify-center">
-                        <Package className="w-5 h-5 text-[#00503a]" />
-                      </div>
-                    ) : (
-                      <div className="w-10 h-10 rounded-full bg-[#feb700] flex items-center justify-center text-[#271900]">
-                        <Headphones className="w-5 h-5" />
-                      </div>
-                    )}
-                    <div>
-                      <h2 className="font-bold text-[#191c1b] leading-tight">
-                        {selectedConversation.name}
-                      </h2>
-                      <div className="flex items-center gap-1.5">
-                        {selectedConversation.isOnline && (
-                          <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></div>
-                        )}
-                        <span className="text-xs text-[#6f7a73]">
-                          {selectedConversation.isOnline
-                            ? "En ligne"
-                            : "Hors ligne"}
-                          {selectedConversation.orderNumber &&
-                            ` • Commande ${selectedConversation.orderNumber}`}
-                        </span>
-                      </div>
+                  {conv.unreadCount > 0 && (
+                    <div className="w-5 h-5 rounded-full bg-[#00503a] text-white text-[10px] font-bold flex items-center justify-center">
+                      {conv.unreadCount}
                     </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button className="p-2 hover:bg-[#f2f4f2] rounded-lg text-[#00503a] transition-all">
-                      <Phone className="w-5 h-5" />
-                    </button>
-                    <button className="p-2 hover:bg-[#f2f4f2] rounded-lg text-[#00503a] transition-all">
-                      <Info className="w-5 h-5" />
-                    </button>
-                  </div>
-                </div>
-
-                {/* Messages Canvas */}
-                <div className="flex-1 overflow-y-auto p-8 space-y-6 bg-[#f8faf7]/50">
-                  <div className="flex justify-center">
-                    <span className="px-4 py-1 bg-[#e7e9e6] rounded-full text-[10px] font-bold text-[#6f7a73] uppercase tracking-wider">
-                      Aujourd'hui
-                    </span>
-                  </div>
-
-                  {selectedConversation.messages.map((message) => (
-                    <div
-                      key={message.id}
-                      className={`flex gap-3 max-w-[80%] ${
-                        message.senderId === "customer1"
-                          ? "ml-auto flex-row-reverse"
-                          : ""
-                      }`}
-                    >
-                      <div className="flex-1">
-                        <div
-                          className={`p-4 rounded-2xl shadow-sm text-sm leading-relaxed ${
-                            message.senderId === "customer1"
-                              ? "bg-[#006a4e] text-white rounded-tr-none"
-                              : "bg-white text-[#191c1b] rounded-tl-none"
-                          }`}
-                        >
-                          {message.type === "image" ? (
-                            <div className="space-y-2">
-                              <div className="w-full h-48 bg-[#e1e3e1] rounded-xl flex items-center justify-center">
-                                <Image className="w-12 h-12 text-[#6f7a73]" />
-                              </div>
-                              <p
-                                className={
-                                  message.senderId === "customer1"
-                                    ? "text-white"
-                                    : "text-[#191c1b]"
-                                }
-                              >
-                                {message.content}
-                              </p>
-                            </div>
-                          ) : message.type === "location" ? (
-                            <div className="space-y-2 overflow-hidden">
-                              <div className="relative w-full h-32 rounded-xl overflow-hidden bg-[#00503a]">
-                                <div className="absolute inset-0 bg-black/10 flex items-center justify-center">
-                                  <MapPin className="w-12 h-12 text-[#feb700]" />
-                                </div>
-                              </div>
-                              <p
-                                className={
-                                  message.senderId === "customer1"
-                                    ? "text-white"
-                                    : "text-[#191c1b]"
-                                }
-                              >
-                                {message.content}
-                              </p>
-                            </div>
-                          ) : (
-                            message.content
-                          )}
-                        </div>
-                        <span
-                          className={`text-[10px] text-[#6f7a73] mt-1 block px-1 ${
-                            message.senderId === "customer1" ? "text-right" : ""
-                          }`}
-                        >
-                          {message.timestamp}
-                          {message.senderId === "customer1" &&
-                            message.isRead &&
-                            " • Lu"}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                  <div ref={messagesEndRef} />
-                </div>
-
-                {/* Input Area */}
-                <div className="p-6 bg-white">
-                  <div className="bg-[#f2f4f2] rounded-2xl p-2 flex items-end gap-2">
-                    <div className="flex items-center">
-                      <button className="p-3 text-[#6f7a73] hover:text-[#00503a] transition-colors">
-                        <Plus className="w-6 h-6" />
-                      </button>
-                      <button className="p-3 text-[#6f7a73] hover:text-[#00503a] transition-colors">
-                        <Image className="w-6 h-6" />
-                      </button>
-                    </div>
-                    <textarea
-                      value={newMessage}
-                      onChange={(e) => setNewMessage(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" && !e.shiftKey) {
-                          e.preventDefault();
-                          sendMessage();
-                        }
-                      }}
-                      className="flex-1 bg-transparent border-none focus:ring-0 text-sm py-3 px-2 resize-none max-h-32"
-                      placeholder="Écrivez votre message..."
-                      rows={1}
-                    />
-                    <button
-                      onClick={sendMessage}
-                      disabled={!newMessage.trim()}
-                      className="bg-[#006a4e] text-white p-3 rounded-xl shadow-lg transition-transform active:scale-95 flex items-center justify-center disabled:opacity-50"
-                    >
-                      <Send className="w-5 h-5" />
-                    </button>
-                  </div>
-                </div>
-              </>
-            ) : (
-              <div className="flex-1 flex items-center justify-center text-[#6f7a73]">
-                <div className="text-center">
-                  <MessageCircle className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                  <p>Sélectionnez une conversation</p>
-                </div>
-              </div>
-            )}
-          </section>
-        </main>
+                  )}
+                </button>
+              );
+            })
+          )}
+        </div>
       </div>
 
+      {/* Chat Panel */}
+      <div
+        className={`${
+          selectedConvId ? "flex" : "hidden md:flex"
+        } flex-col flex-1 bg-[#f8faf7]`}
+      >
+        {selectedConv ? (
+          <>
+            {/* Chat Header */}
+            <div className="p-4 bg-white border-b border-slate-100 flex items-center gap-3">
+              <button
+                onClick={() => setSelectedConvId(null)}
+                className="md:hidden p-2 -ml-2 rounded-lg hover:bg-slate-100"
+              >
+                <ArrowLeft className="w-5 h-5" />
+              </button>
+              <div className="w-10 h-10 rounded-full bg-[#00503a]/10 flex items-center justify-center overflow-hidden">
+                {otherUser?.avatar ? (
+                  <img
+                    src={otherUser.avatar}
+                    alt=""
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <User className="w-5 h-5 text-[#00503a]" />
+                )}
+              </div>
+              <div className="flex-1">
+                <h3 className="font-bold text-sm">
+                  {otherUser?.name || "Utilisateur"}
+                </h3>
+                <p className="text-xs text-slate-500">
+                  {selectedConv.order?.orderNumber || "Support"}
+                </p>
+              </div>
+              {selectedConv.orderId && (
+                <Link
+                  href={`/customer/orders/${selectedConv.orderId}`}
+                  className="p-2 rounded-full bg-slate-100 text-slate-600"
+                >
+                  <Package className="w-4 h-4" />
+                </Link>
+              )}
+            </div>
+
+            {/* Messages */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-3">
+              {messages.map((msg) => (
+                <div
+                  key={msg.id}
+                  className={`flex ${msg.senderId === user?.id ? "justify-end" : "justify-start"}`}
+                >
+                  <div
+                    className={`max-w-[80%] px-4 py-2.5 rounded-2xl text-sm ${
+                      msg.senderId === user?.id
+                        ? "bg-[#00503a] text-white rounded-br-md"
+                        : "bg-white text-[#191c1b] rounded-bl-md shadow-sm"
+                    }`}
+                  >
+                    {msg.type === "LOCATION" ? (
+                      <a
+                        href={msg.content.split(": ").pop()}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-2 text-blue-200 hover:underline"
+                      >
+                        <MapPin className="w-4 h-4" />
+                        Voir la position
+                      </a>
+                    ) : (
+                      <p>{msg.content}</p>
+                    )}
+                    <p
+                      className={`text-[10px] mt-1 ${
+                        msg.senderId === user?.id
+                          ? "text-white/50"
+                          : "text-slate-400"
+                      }`}
+                    >
+                      {new Date(msg.createdAt).toLocaleTimeString("fr-CM", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </p>
+                  </div>
+                </div>
+              ))}
+              <div ref={messagesEndRef} />
+            </div>
+
+            {/* WhatsApp-style Input Bar */}
+            <div className="p-3 bg-white border-t border-slate-100">
+              <div className="flex items-center gap-2">
+                {/* Attachment Button */}
+                <div className="relative">
+                  <button
+                    onClick={handleShareLocation}
+                    className="p-2 rounded-full bg-[#f2f4f2] text-slate-500 hover:bg-[#e7e9e6] transition-colors"
+                    title="Partager position"
+                  >
+                    <MapPin className="w-5 h-5" />
+                  </button>
+                </div>
+
+                {/* Image Button */}
+                <button
+                  onClick={() =>
+                    toast("Envoi d'images bientôt disponible", { icon: "📷" })
+                  }
+                  className="p-2 rounded-full bg-[#f2f4f2] text-slate-500 hover:bg-[#e7e9e6] transition-colors"
+                  title="Envoyer image"
+                >
+                  <ImageIcon className="w-5 h-5" />
+                </button>
+
+                {/* Text Input */}
+                <div className="flex-1 flex items-center bg-[#f2f4f2] rounded-full">
+                  <button className="p-2 text-slate-400 hover:text-slate-600">
+                    <Smile className="w-5 h-5" />
+                  </button>
+                  <input
+                    type="text"
+                    value={newMessage}
+                    onChange={(e) => setNewMessage(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleSend()}
+                    placeholder="Votre message..."
+                    className="flex-1 bg-transparent py-2 text-sm focus:outline-none"
+                  />
+                </div>
+
+                {/* Send/Voice Button */}
+                {newMessage.trim() ? (
+                  <button
+                    onClick={handleSend}
+                    disabled={sendingMessage}
+                    className="w-10 h-10 bg-[#00503a] text-white rounded-full flex items-center justify-center hover:bg-[#006a4e] transition-colors"
+                  >
+                    <Send className="w-5 h-5" />
+                  </button>
+                ) : (
+                  <button className="w-10 h-10 bg-[#00503a] text-white rounded-full flex items-center justify-center hover:bg-[#006a4e] transition-colors">
+                    <Mic className="w-5 h-5" />
+                  </button>
+                )}
+              </div>
+            </div>
+          </>
+        ) : (
+          /* Empty State */
+          <div className="flex-1 flex flex-col items-center justify-center p-8">
+            <div className="w-20 h-20 rounded-full bg-[#9ef4d0]/30 flex items-center justify-center mb-4">
+              <MessageCircle className="w-10 h-10 text-[#00503a]" />
+            </div>
+            <h3 className="font-bold text-lg text-[#191c1b] mb-2">
+              Centre de Messages
+            </h3>
+            <p className="text-sm text-slate-500 text-center max-w-xs">
+              Sélectionnez une conversation pour commencer à discuter.
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export default function CustomerMessagesPage() {
+  return (
+    <div className="min-h-screen bg-[#f8faf7] text-[#191c1b]">
+      <Header />
+      <div className="flex pt-20">
+        <Sidebar />
+        <Suspense
+          fallback={
+            <div className="flex-1 flex items-center justify-center">
+              <div className="w-8 h-8 border-3 border-[#00503a] border-t-transparent rounded-full animate-spin" />
+            </div>
+          }
+        >
+          <ChatContent />
+        </Suspense>
+      </div>
       <MobileNav />
     </div>
   );

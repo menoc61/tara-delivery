@@ -260,3 +260,28 @@ export const adminApi = {
   getSettings: () => apiClient.get("/admin/settings"),
   updateSettings: (data: unknown) => apiClient.patch("/admin/settings", data),
 };
+
+export const chatApi = {
+  getConversations: () => apiClient.get("/chat/conversations"),
+  getSupportConversation: () => apiClient.get("/chat/support"),
+  getMessages: (
+    conversationId: string,
+    params?: { page?: number; limit?: number },
+  ) =>
+    apiClient.get(`/chat/conversations/${conversationId}/messages`, { params }),
+  sendMessage: (
+    conversationId: string,
+    data: {
+      content: string;
+      type?: string;
+      imageUrl?: string;
+      locationLat?: number;
+      locationLng?: number;
+    },
+  ) => apiClient.post(`/chat/conversations/${conversationId}/messages`, data),
+  markAsRead: (conversationId: string) =>
+    apiClient.patch(`/chat/conversations/${conversationId}/read`),
+  getUnreadCount: () => apiClient.get("/chat/unread"),
+  getRiderConversation: (orderId: string) =>
+    apiClient.post(`/chat/conversations/rider/${orderId}`),
+};

@@ -5,20 +5,19 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   Package,
-  Plus,
   MapPin,
   Clock,
   CheckCircle,
   ChevronRight,
-  Bell,
-  LogOut,
-  Settings,
-  CreditCard,
-  Wallet,
-  User,
 } from "lucide-react";
 import { useAuthStore } from "@/store/auth.store";
-import { ordersApi, authApi } from "@/lib/api-client";
+import { ordersApi } from "@/lib/api-client";
+import {
+  MobileNav,
+  Sidebar,
+  Header,
+  PageFooter,
+} from "@/components/CustomerLayout";
 import toast from "react-hot-toast";
 
 const formatCFA = (v: number) =>
@@ -36,7 +35,7 @@ const statusLabels: Record<string, string> = {
 };
 
 export default function CustomerDashboard() {
-  const { user, clearAuth } = useAuthStore();
+  const { user } = useAuthStore();
   const router = useRouter();
   const [orders, setOrders] = useState<Record<string, unknown>[]>([]);
   const [loading, setLoading] = useState(true);
@@ -44,157 +43,40 @@ export default function CustomerDashboard() {
   useEffect(() => {
     ordersApi
       .getMyOrders({ limit: 20 })
-      .then((r) => setOrders(r.data.data.items || []))
+      .then((r) => setOrders(r.data.data?.items || []))
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
-
-  const handleLogout = async () => {
-    try {
-      await authApi.logout();
-    } catch {}
-    clearAuth();
-    router.push("/auth/login");
-  };
 
   const activeOrders = orders.filter(
     (o) => !["DELIVERED", "CANCELLED", "FAILED"].includes(o.status as string),
   );
   const deliveredCount = orders.filter((o) => o.status === "DELIVERED").length;
 
-  const getDay = (d: string) => new Date(d as string).getDate();
+  const getDay = (d: string) => new Date(d).getDate();
   const getMonth = (d: string) =>
-    new Date(d as string)
-      .toLocaleString("fr-CM", { month: "short" })
-      .toUpperCase();
+    new Date(d).toLocaleString("fr-CM", { month: "short" }).toUpperCase();
 
   return (
     <div className="min-h-screen bg-[#f8faf7] text-[#191c1b]">
-      {/* Header */}
-      <header className="fixed top-0 w-full z-50 bg-white/80 backdrop-blur-md shadow-sm">
-        <div className="flex justify-between items-center px-8 h-20 max-w-screen-2xl mx-auto w-full relative">
-          <div className="flex items-center gap-8">
-            <span className="text-2xl font-black tracking-tighter text-emerald-900">
-              TARA DELIVERY
-            </span>
-            <nav className="hidden md:flex items-center space-y-0 space-x-6">
-              <Link
-                href="/customer/orders/track"
-                className="text-slate-600 hover:text-emerald-800 transition-colors text-sm font-medium"
-              >
-                Suivi
-              </Link>
-              <Link
-                href="/customer/orders"
-                className="text-emerald-700 font-bold border-b-2 border-emerald-700 pb-1 text-sm"
-              >
-                Historique
-              </Link>
-              <Link
-                href="/customer/pricing"
-                className="text-slate-600 hover:text-emerald-800 transition-colors text-sm font-medium"
-              >
-                Tarifs
-              </Link>
-              <Link
-                href="/customer/help"
-                className="text-slate-600 hover:text-emerald-800 transition-colors text-sm font-medium"
-              >
-                Aide
-              </Link>
-            </nav>
-          </div>
-          <div className="flex items-center gap-4">
-            <Link href="/customer/notifications" className="p-2 hover:bg-slate-50 rounded-lg transition-all text-slate-600">
-              <Bell className="w-5 h-5" />
-            </Link>
-            <Link href="/customer/profile">
-              <div className="h-10 w-10 rounded-full overflow-hidden bg-[#edeeec]">
-                {user?.avatar ? (
-                  <img
-                    src={user.avatar}
-                    alt="Profile"
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="w-full h-full bg-emerald-100 flex items-center justify-center text-emerald-900 font-bold">
-                    {user?.name?.charAt(0) || "U"}
-                  </div>
-                )}
-              </div>
-            </Link> 
-          </div>
-          <div className="bg-slate-100 h-[1px] w-full absolute bottom-0 left-0"></div>
-        </div>
-      </header>
+      <Header />
 
-      {/* Main Layout */}
-      <div className="flex flex-1 pt-20 max-w-screen-2xl mx-auto w-full">
-        {/* Sidebar */}
-        <aside className="hidden md:flex flex-col h-[calc(100vh-80px)] w-64 border-r-0 py-6 px-4 space-y-2 sticky top-20">
-          <div className="mb-8 px-2">
-            <h2 className="text-xl font-bold text-emerald-900">
-              Tableau de Bord
-            </h2>
-            <p className="text-xs text-slate-500 font-medium">
-              Gérez vos envois
-            </p>
-          </div>
-          <nav className="flex-1 space-y-1">
-            <Link
-              href="/customer/new-order"
-              className="flex items-center gap-3 py-3 px-4 bg-emerald-100 text-emerald-900 rounded-xl font-semibold transition-transform duration-200 hover:translate-x-1"
-            >
-              <Package
-                className="w-5 h-5"
-                style={{ fontVariationSettings: "'FILL' 1" }}
-              />
-              <span className="text-sm">Nouvelle Livraison</span>
-            </Link>
-            <Link
-              href="/customer/orders"
-              className="flex items-center gap-3 py-3 px-4 text-slate-500 hover:bg-slate-100 rounded-xl transition-transform duration-200 hover:translate-x-1"
-            >
-              <CreditCard className="w-5 h-5" />
-              <span className="text-sm">Mes Colis</span>
-            </Link>
-            <Link
-              href="/customer/payments"
-              className="flex items-center gap-3 py-3 px-4 text-slate-500 hover:bg-slate-100 rounded-xl transition-transform duration-200 hover:translate-x-1"
-            >
-              <Wallet className="w-5 h-5" />
-              <span className="text-sm">Paiements</span>
-            </Link>
-            <Link
-              href="/customer/settings"
-              className="flex items-center gap-3 py-3 px-4 text-slate-500 hover:bg-slate-100 rounded-xl transition-transform duration-200 hover:translate-x-1"
-            >
-              <Settings className="w-5 h-5" />
-              <span className="text-sm">Paramètres</span>
-            </Link>
-          </nav>
-          <Link
-            href="/customer/new-order"
-            className="mt-auto w-full py-4 bg-gradient-to-br from-[#00503a] to-[#006a4e] text-white rounded-xl font-bold text-sm tracking-wide uppercase shadow-lg active:scale-95 transition-all text-center"
-          >
-            Démarrer un envoi
-          </Link>
-        </aside>
+      <div className="flex pt-20">
+        <Sidebar />
 
-        {/* Main Content */}
-        <main className="flex-1 p-8 overflow-y-auto">
+        <main className="flex-1 p-4 md:p-8 lg:p-12 overflow-y-auto pb-28 md:pb-24">
           {/* Bento Stats Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6 mb-12">
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6 mb-8 md:mb-12">
             {/* Welcome Card - 2 cols */}
-            <div className="md:col-span-2 lg:col-span-2 bg-[#00503a] text-white p-8 rounded-xl flex flex-col justify-between relative overflow-hidden">
+            <div className="md:col-span-2 lg:col-span-2 bg-[#00503a] text-white p-6 md:p-8 rounded-xl flex flex-col justify-between relative overflow-hidden">
               <div className="relative z-10">
-                <h3 className="text-3xl font-extrabold mb-1">
+                <h3 className="text-2xl md:text-3xl font-extrabold mb-1">
                   Bienvenue, {user?.name?.split(" ")[0] || "Client"}
                 </h3>
                 <p className="text-[#92e7c3] text-sm font-medium max-w-[240px]">
                   Vous avez {activeOrders.length} livraison
                   {activeOrders.length > 1 ? "s" : ""} active
-                  {activeOrders.length > 1 ? "s" : ""} aujourd'hui à Yaoundé.
+                  {activeOrders.length > 1 ? "s" : ""} aujourd&apos;hui.
                 </p>
               </div>
               <Link
@@ -203,48 +85,39 @@ export default function CustomerDashboard() {
               >
                 NOUVEL ENVOI
               </Link>
-              {/* Decorative */}
               <div className="absolute -right-12 -bottom-12 opacity-10">
-                <Package
-                  className="text-[200px]"
-                  style={{ fontVariationSettings: "'FILL' 1" }}
-                />
+                <Package className="text-[200px]" />
               </div>
             </div>
 
             {/* Total Deliveries */}
-            <div className="bg-[#f2f4f2] p-6 rounded-xl flex flex-col justify-between">
+            <div className="bg-[#f2f4f2] p-5 md:p-6 rounded-xl flex flex-col justify-between">
               <div>
                 <div className="flex items-center justify-between mb-4">
                   <span className="text-slate-500 text-xs font-bold uppercase tracking-wider">
                     Total Livraisons
                   </span>
-                  <span className="text-[#00503a]">
-                    <Package className="w-5 h-5" />
-                  </span>
+                  <Package className="w-5 h-5 text-[#00503a]" />
                 </div>
-                <p className="text-4xl font-black text-[#191c1b]">
+                <p className="text-3xl md:text-4xl font-black text-[#191c1b]">
                   {orders.length}
                 </p>
               </div>
-              <p className="text-xs text-emerald-700 font-semibold flex items-center gap-1">
-                <span className="text-sm">↑</span> +
-                {Math.floor(deliveredCount / 2)}% ce mois
+              <p className="text-xs text-emerald-700 font-semibold">
+                +{Math.floor(deliveredCount / 2)}% ce mois
               </p>
             </div>
 
             {/* Savings */}
-            <div className="bg-[#f2f4f2] p-6 rounded-xl flex flex-col justify-between">
+            <div className="bg-[#f2f4f2] p-5 md:p-6 rounded-xl flex flex-col justify-between">
               <div>
                 <div className="flex items-center justify-between mb-4">
                   <span className="text-slate-500 text-xs font-bold uppercase tracking-wider">
                     Économies
                   </span>
-                  <span className="text-[#7c5800]">
-                    <CheckCircle className="w-5 h-5" />
-                  </span>
+                  <CheckCircle className="w-5 h-5 text-[#7c5800]" />
                 </div>
-                <p className="text-3xl font-black text-[#191c1b]">
+                <p className="text-2xl md:text-3xl font-black text-[#191c1b]">
                   {formatCFA(orders.length * 500)}
                 </p>
               </div>
@@ -255,291 +128,170 @@ export default function CustomerDashboard() {
           </div>
 
           {/* Active Deliveries Section */}
-          <section className="mb-12">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-extrabold text-emerald-950">
-                Suivi en direct
+          <section className="mb-8 md:mb-12">
+            <div className="flex items-center justify-between mb-4 md:mb-6">
+              <h2 className="text-lg md:text-xl font-bold text-[#191c1b]">
+                Suivi en Direct
               </h2>
               <Link
                 href="/customer/orders"
-                className="text-[#00503a] font-bold text-sm hover:underline"
+                className="flex items-center gap-1 text-sm text-[#00503a] font-bold hover:underline"
               >
-                Voir tout
+                Voir tout <ChevronRight className="w-4 h-4" />
               </Link>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Tracking Card 1 */}
-              <div className="bg-[#e1e3e1] p-6 rounded-xl">
-                <div className="flex justify-between items-start mb-6">
-                  <div className="flex gap-4">
-                    <div className="p-3 bg-white rounded-lg">
-                      <Package className="w-6 h-6 text-emerald-800" />
-                    </div>
-                    <div>
-                      <p className="font-bold text-[#191c1b]">
-                        Commande #TR-892
-                      </p>
-                      <p className="text-xs text-slate-500">
-                        Destinataire: Jean M. (Bastos)
-                      </p>
-                    </div>
-                  </div>
-                  <span className="px-3 py-1 bg-[#006a4e] text-[#9ef4d0] rounded-full text-[10px] font-bold uppercase tracking-tighter">
-                    En cours
-                  </span>
-                </div>
-                <div className="space-y-3">
-                  <div className="flex justify-between text-xs font-bold text-slate-600">
-                    <span>Progression</span>
-                    <span>75%</span>
-                  </div>
-                  <div className="h-2 w-full bg-[#edeeec] rounded-full overflow-hidden">
-                    <div className="h-full bg-[#00503a] rounded-full w-[75%]"></div>
-                  </div>
-                  <p className="text-[11px] text-slate-500 italic mt-2 flex items-center gap-1">
-                    <MapPin className="w-3 h-3" /> Le livreur est à 5 min de
-                    l'arrivée
-                  </p>
-                </div>
+            {loading ? (
+              <div className="flex gap-4 overflow-x-auto pb-4">
+                {[1, 2].map((i) => (
+                  <div
+                    key={i}
+                    className="w-80 h-48 bg-[#e1e3e1] rounded-xl animate-pulse shrink-0"
+                  />
+                ))}
               </div>
-
-              {/* Tracking Card 2 */}
-              <div className="bg-[#e1e3e1] p-6 rounded-xl">
-                <div className="flex justify-between items-start mb-6">
-                  <div className="flex gap-4">
-                    <div className="p-3 bg-white rounded-lg">
-                      <Clock className="w-6 h-6 text-emerald-800" />
+            ) : activeOrders.length > 0 ? (
+              <div className="flex gap-4 overflow-x-auto pb-4 -mx-4 px-4 md:mx-0 md:px-0">
+                {activeOrders.slice(0, 5).map((order) => (
+                  <Link
+                    key={order.id as string}
+                    href={`/customer/orders/${order.id}`}
+                    className="w-80 bg-white border border-slate-100 p-5 rounded-xl shadow-sm shrink-0 hover:shadow-md transition-all"
+                  >
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-2">
+                        <div className="w-10 h-10 rounded-xl bg-[#9ef4d0] flex items-center justify-center text-emerald-900">
+                          <Package className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <p className="font-mono text-sm font-bold text-[#191c1b]">
+                            #{order.orderNumber as string}
+                          </p>
+                          <p className="text-xs text-slate-500">
+                            {(order.type as string) === "FOOD"
+                              ? "Repas"
+                              : (order.type as string) === "GROCERY"
+                                ? "Courses"
+                                : "Colis"}
+                          </p>
+                        </div>
+                      </div>
+                      <span className="px-2.5 py-1 bg-[#00503a]/10 text-[#00503a] text-[10px] font-bold rounded-full uppercase">
+                        {statusLabels[order.status as string] ||
+                          (order.status as string)}
+                      </span>
                     </div>
-                    <div>
-                      <p className="font-bold text-[#191c1b]">
-                        Commande #TR-885
-                      </p>
-                      <p className="text-xs text-slate-500">
-                        Origine: Boulangerie Centrale
+                    <div className="flex items-center gap-2 mb-4">
+                      <MapPin className="w-4 h-4 text-[#6f7a73]" />
+                      <p className="text-sm text-[#191c1b] truncate">
+                        {(order.deliveryNeighborhood as string) || "Yaoundé"}
                       </p>
                     </div>
-                  </div>
-                  <span className="px-3 py-1 bg-[#feb700] text-[#271900] rounded-full text-[10px] font-bold uppercase tracking-tighter">
-                    Récupération
-                  </span>
-                </div>
-                <div className="space-y-3">
-                  <div className="flex justify-between text-xs font-bold text-slate-600">
-                    <span>Progression</span>
-                    <span>20%</span>
-                  </div>
-                  <div className="h-2 w-full bg-[#edeeec] rounded-full overflow-hidden">
-                    <div className="h-full bg-[#7c5800] rounded-full w-[20%]"></div>
-                  </div>
-                  <p className="text-[11px] text-slate-500 italic mt-2 flex items-center gap-1">
-                    <Clock className="w-3 h-3" /> Attente de prise en charge par
-                    le coursier
-                  </p>
-                </div>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-xs text-[#6f7a73]">
+                        <Clock className="w-4 h-4" />
+                        {order.createdAt
+                          ? new Date(
+                              order.createdAt as string,
+                            ).toLocaleTimeString("fr-CM", {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })
+                          : "N/A"}
+                      </div>
+                      <span className="font-bold text-sm text-[#191c1b]">
+                        {formatCFA((order.totalAmount as number) || 0)}
+                      </span>
+                    </div>
+                  </Link>
+                ))}
               </div>
-            </div>
+            ) : (
+              <div className="bg-white rounded-xl border border-slate-100 p-8 text-center">
+                <Package className="w-12 h-12 text-slate-300 mx-auto mb-4" />
+                <p className="text-slate-500 mb-4">Aucune livraison active</p>
+                <Link
+                  href="/customer/new-order"
+                  className="inline-block bg-[#00503a] text-white px-6 py-2.5 rounded-lg font-bold text-sm hover:bg-[#006a4e] transition-colors"
+                >
+                  Créer une livraison
+                </Link>
+              </div>
+            )}
           </section>
 
           {/* Recent History Section */}
           <section>
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-extrabold text-emerald-950">
-                Historique récent
+            <div className="flex items-center justify-between mb-4 md:mb-6">
+              <h2 className="text-lg md:text-xl font-bold text-[#191c1b]">
+                Historique Récent
               </h2>
-              <div className="flex gap-2">
-                <button className="p-2 bg-[#f2f4f2] rounded-lg hover:bg-[#e7e9e6]">
-                  <span className="text-sm">↓</span>
-                </button>
-              </div>
+              <Link
+                href="/customer/orders"
+                className="flex items-center gap-1 text-sm text-[#00503a] font-bold hover:underline"
+              >
+                Voir tout <ChevronRight className="w-4 h-4" />
+              </Link>
             </div>
-            <div className="space-y-2">
-              {/* History Item 1 */}
-              <div className="group flex flex-col md:flex-row md:items-center justify-between p-5 bg-white hover:bg-emerald-50/50 transition-colors rounded-xl gap-4">
-                <div className="flex items-center gap-6">
-                  <div className="text-center min-w-[48px]">
-                    <p className="text-xs font-bold text-slate-400 uppercase">
-                      Mars
-                    </p>
-                    <p className="text-xl font-black text-[#191c1b]">26</p>
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-[#191c1b]">
-                      Documents Administratifs
-                    </h4>
-                    <p className="text-xs text-slate-500">
-                      De: Omnisports — À: Mvan
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center justify-between md:justify-end gap-12">
-                  <div className="text-right">
-                    <p className="font-bold text-[#191c1b]">2.500 XAF</p>
-                    <p className="text-[10px] text-emerald-600 font-bold uppercase tracking-widest">
-                      Orange Money
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className="hidden md:block px-3 py-1 bg-[#ffdbcb] text-[#341100] rounded-full text-[10px] font-bold uppercase">
-                      Livré
-                    </span>
-                    <button className="p-2 group-hover:bg-emerald-100 rounded-lg transition-all">
-                      <span className="text-slate-400 group-hover:text-emerald-700 text-xs">
-                        →
-                      </span>
-                    </button>
-                  </div>
-                </div>
+            {loading ? (
+              <div className="space-y-3">
+                {[1, 2, 3].map((i) => (
+                  <div
+                    key={i}
+                    className="h-20 bg-[#e1e3e1] rounded-xl animate-pulse"
+                  />
+                ))}
               </div>
-
-              {/* History Item 2 */}
-              <div className="group flex flex-col md:flex-row md:items-center justify-between p-5 bg-white hover:bg-emerald-50/50 transition-colors rounded-xl gap-4">
-                <div className="flex items-center gap-6">
-                  <div className="text-center min-w-[48px]">
-                    <p className="text-xs font-bold text-slate-400 uppercase">
-                      Mars
-                    </p>
-                    <p className="text-xl font-black text-[#191c1b]">24</p>
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-[#191c1b]">
-                      Colis Alimentaire
-                    </h4>
-                    <p className="text-xs text-slate-500">
-                      De: Marché Central — À: Santa Barbara
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center justify-between md:justify-end gap-12">
-                  <div className="text-right">
-                    <p className="font-bold text-[#191c1b]">3.800 XAF</p>
-                    <p className="text-[10px] text-emerald-600 font-bold uppercase tracking-widest">
-                      MTN MoMo
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className="hidden md:block px-3 py-1 bg-[#ffdbcb] text-[#341100] rounded-full text-[10px] font-bold uppercase">
-                      Livré
-                    </span>
-                    <button className="p-2 group-hover:bg-emerald-100 rounded-lg transition-all">
-                      <span className="text-slate-400 group-hover:text-emerald-700 text-xs">
-                        →
+            ) : orders.filter((o) => o.status === "DELIVERED").length > 0 ? (
+              <div className="space-y-3">
+                {orders
+                  .filter((o) => o.status === "DELIVERED")
+                  .slice(0, 5)
+                  .map((order) => (
+                    <Link
+                      key={order.id as string}
+                      href={`/customer/orders/${order.id}`}
+                      className="flex items-center gap-4 bg-white p-4 rounded-xl border border-slate-100 hover:shadow-md transition-all"
+                    >
+                      <div className="w-12 h-12 rounded-xl bg-[#f2f4f2] flex flex-col items-center justify-center">
+                        <span className="text-[10px] font-bold text-[#3f4944]">
+                          {getMonth(order.createdAt as string)}
+                        </span>
+                        <span className="text-lg font-black text-[#191c1b] leading-none">
+                          {getDay(order.createdAt as string)}
+                        </span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-0.5">
+                          <span className="font-mono text-sm font-bold text-[#191c1b]">
+                            #{order.orderNumber as string}
+                          </span>
+                          <span className="px-2 py-0.5 bg-[#83d7b4] text-[#002116] text-[10px] font-bold rounded-full uppercase">
+                            Livré
+                          </span>
+                        </div>
+                        <p className="text-sm text-[#6f7a73] truncate">
+                          {(order.deliveryStreet as string) || "Yaoundé"},{" "}
+                          {(order.deliveryNeighborhood as string) || ""}
+                        </p>
+                      </div>
+                      <span className="font-bold text-sm text-[#191c1b]">
+                        {formatCFA((order.totalAmount as number) || 0)}
                       </span>
-                    </button>
-                  </div>
-                </div>
+                    </Link>
+                  ))}
               </div>
-
-              {/* History Item 3 */}
-              <div className="group flex flex-col md:flex-row md:items-center justify-between p-5 bg-white hover:bg-emerald-50/50 transition-colors rounded-xl gap-4">
-                <div className="flex items-center gap-6">
-                  <div className="text-center min-w-[48px]">
-                    <p className="text-xs font-bold text-slate-400 uppercase">
-                      Mars
-                    </p>
-                    <p className="text-xl font-black text-[#191c1b]">19</p>
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-[#191c1b]">
-                      Électronique (Smartphone)
-                    </h4>
-                    <p className="text-xs text-slate-500">
-                      De: Akwa Douala — À: Yaoundé V
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center justify-between md:justify-end gap-12">
-                  <div className="text-right">
-                    <p className="font-bold text-[#191c1b]">12.000 XAF</p>
-                    <p className="text-[10px] text-emerald-600 font-bold uppercase tracking-widest">
-                      Cash
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className="hidden md:block px-3 py-1 bg-[#ffdbcb] text-[#341100] rounded-full text-[10px] font-bold uppercase">
-                      Livré
-                    </span>
-                    <button className="p-2 group-hover:bg-emerald-100 rounded-lg transition-all">
-                      <span className="text-slate-400 group-hover:text-emerald-700 text-xs">
-                        →
-                      </span>
-                    </button>
-                  </div>
-                </div>
+            ) : (
+              <div className="bg-white rounded-xl border border-slate-100 p-8 text-center">
+                <Clock className="w-12 h-12 text-slate-300 mx-auto mb-4" />
+                <p className="text-slate-500">Aucune livraison terminée</p>
               </div>
-            </div>
+            )}
           </section>
         </main>
       </div>
 
-      {/* Footer */}
-      <footer className="bg-slate-100 w-full">
-        <div className="bg-emerald-900/5 h-px"></div>
-        <div className="flex flex-col md:flex-row justify-between items-center px-8 py-12 w-full gap-4 max-w-screen-2xl mx-auto">
-          <p className="text-xs text-slate-500">
-            © 2026 TARA DELIVERY. Logistique de précision au cœur de Yaoundé.
-          </p>
-          <div className="flex gap-8">
-            <Link
-              href="/terms"
-              className="text-xs text-slate-500 hover:text-emerald-700 transition-colors"
-            >
-              Conditions Générales
-            </Link>
-            <Link
-              href="/privacy"
-              className="text-xs text-slate-500 hover:text-emerald-700 transition-colors"
-            >
-              Confidentialité
-            </Link>
-            <Link
-              href="/contact"
-              className="text-xs text-slate-500 hover:text-emerald-700 transition-colors"
-            >
-              Contactez-nous
-            </Link>
-          </div>
-        </div>
-      </footer>
-
-      {/* Mobile Nav */}
-      <div className="md:hidden fixed bottom-0 w-full bg-white border-t border-slate-100 px-6 py-3 flex justify-between items-center z-50">
-        <Link
-          href="/customer"
-          className="flex flex-col items-center gap-1 text-emerald-900"
-        >
-          <span className="text-xl">☰</span>
-          <span className="text-[10px] font-bold">Accueil</span>
-        </Link>
-        <Link
-          href="/customer/orders"
-          className="flex flex-col items-center gap-1 text-slate-400"
-        >
-          <Package className="w-5 h-5" />
-          <span className="text-[10px] font-bold">Envois</span>
-        </Link>
-        <div className="relative -top-8">
-          <Link
-            href="/customer/new-order"
-            className="w-14 h-14 bg-[#feb700] rounded-full shadow-lg flex items-center justify-center text-[#271900]"
-          >
-            <Plus className="text-3xl" />
-          </Link>
-        </div>
-        <Link
-          href="/customer/payments"
-          className="flex flex-col items-center gap-1 text-slate-400"
-        >
-          <Wallet className="w-5 h-5" />
-          <span className="text-[10px] font-bold">Portefeuille</span>
-        </Link>
-        <Link
-          href="/customer/profile"
-          className="flex flex-col items-center gap-1 text-slate-400"
-        >
-          <User className="w-5 h-5" />
-          <span className="text-[10px] font-bold">Profil</span>
-        </Link>
-      </div>
+      <PageFooter />
+      <MobileNav />
     </div>
   );
 }

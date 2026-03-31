@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { useRouter, useParams } from "next/navigation";
+import type * as L from "leaflet";
 import {
   Package,
   MapPin,
@@ -76,20 +77,39 @@ function TrackingMap({
   status: string;
 }) {
   const [mapLoaded, setMapLoaded] = useState(false);
+  const mapRef = useRef<L.Map | null>(null);
+  const mapContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    if (typeof window === "undefined" || !mapContainerRef.current) return;
 
     const loadMap = async () => {
       const L = await import("leaflet");
 
-      // Import CSS
-      const link = document.createElement("link");
-      link.rel = "stylesheet";
-      link.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
-      document.head.appendChild(link);
+      // Check if CSS already loaded
+      if (!document.querySelector('link[href*="leaflet.css"]')) {
+        const link = document.createElement("link");
+        link.rel = "stylesheet";
+        link.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
+        document.head.appendChild(link);
+      }
 
-      const map = L.map("tracking-map").setView([3.848, 11.502], 13);
+      // Destroy existing map if any
+      if (mapRef.current) {
+        mapRef.current.remove();
+        mapRef.current = null;
+      }
+
+      // Clear container
+      if (mapContainerRef.current) {
+        mapContainerRef.current.innerHTML = "";
+      }
+
+      const map = L.map(mapContainerRef.current!).setView(
+        [3.8667, 11.5167],
+        13,
+      );
+      mapRef.current = map;
 
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
         attribution: "&copy; OpenStreetMap contributors",
@@ -111,7 +131,7 @@ function TrackingMap({
         iconAnchor: [16, 16],
       });
 
-      // Yaoundé coordinates for demo
+      // Yaoundé actual coordinates
       const pickupCoords = pickup || { lat: 3.8667, lng: 11.5167 };
       const deliveryCoords = delivery || { lat: 3.8333, lng: 11.5 };
 
@@ -149,14 +169,16 @@ function TrackingMap({
     loadMap();
 
     return () => {
-      const mapContainer = document.getElementById("tracking-map");
-      if (mapContainer) mapContainer.innerHTML = "";
+      if (mapRef.current) {
+        mapRef.current.remove();
+        mapRef.current = null;
+      }
     };
   }, [pickup, delivery]);
 
   return (
     <div className="relative w-full h-64 md:h-80 rounded-xl overflow-hidden border border-slate-200">
-      <div id="tracking-map" className="w-full h-full" />
+      <div ref={mapContainerRef} className="w-full h-full" />
       {!mapLoaded && (
         <div className="absolute inset-0 bg-slate-100 flex items-center justify-center">
           <div className="text-center">
@@ -496,10 +518,13 @@ export default function OrderTrackingPage() {
                     Noter la livraison
                   </button>
                 )}
-                <button className="flex-1 flex items-center justify-center gap-2 py-3 bg-white border border-slate-200 text-slate-700 rounded-xl text-sm font-bold hover:bg-slate-50 transition-colors">
+                <Link
+                  href={`/customer/messages/${order.id}`}
+                  className="flex-1 flex items-center justify-center gap-2 py-3 bg-white border border-slate-200 text-slate-700 rounded-xl text-sm font-bold hover:bg-slate-50 transition-colors"
+                >
                   <MessageCircle className="w-4 h-4" />
                   Assistance
-                </button>
+                </Link>
               </div>
             </div>
           )}
